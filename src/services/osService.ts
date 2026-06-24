@@ -145,6 +145,36 @@ export const osService = {
         return response.data;
     },
 
+    // --- Imagens de Veículos ---
+    uploadVeiculoImagem: async (veiculoId: number, file: File, legenda?: string): Promise<any> => {
+        const formData = new FormData();
+        formData.append('file', file);
+        if (legenda) formData.append('legenda', legenda);
+        
+        const response = await api.post<any>(`/veiculos/${veiculoId}/imagens`, formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
+        });
+        return response.data;
+    },
+
+    deleteVeiculoImagem: async (imagemId: number): Promise<void> => {
+        // Validação de multi-tenancy é feita no backend
+        await api.delete(`/veiculos/imagens/${imagemId}`);
+    },
+
+    updateVeiculoImagemLegenda: async (imagemId: number, legenda: string): Promise<any> => {
+        // Validação de multi-tenancy é feita no backend
+        const response = await api.patch<any>(`/veiculos/imagens/${imagemId}`, { legenda });
+        return response.data;
+    },
+
+    reorderVeiculoImagens: async (veiculoId: number, ids: number[]): Promise<any> => {
+        const response = await api.put<any>(`/veiculos/${veiculoId}/imagens/ordem`, { ids });
+        return response.data;
+    },
+
     // --- PDF ---
     // Path builders for PDF downloads (used by usePdfDownload hook)
     getRelatorioPdfPath: (ano: number, mes: number) => `relatorios/${ano}/${mes}/pdf`,
