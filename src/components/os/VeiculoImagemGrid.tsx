@@ -185,7 +185,7 @@ export const VeiculoImagemGrid: React.FC<Props> = ({ veiculoId, osId, imagens = 
         reorderMutation.mutate(newOrder.map(img => img.id));
     };
 
-    const handleImageTap = (id: number, url: string) => {
+    const handleImageTap = (id: number, _url: string) => {
         if (selectedImageId === null) {
             // Toque 1: Seleciona
             setSelectedImageId(id);
