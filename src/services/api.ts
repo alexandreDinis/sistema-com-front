@@ -10,7 +10,7 @@ if (!API_BASE_URL) {
 
 const api = axios.create({
     baseURL: API_BASE_URL.replace(/\/?$/, '/'),
-    timeout: 15000,
+    timeout: 60000, // Aumentado para 60s para testes de simulação lenta
     headers: {
         'Content-Type': 'application/json',
     },

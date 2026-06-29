@@ -306,6 +306,15 @@ export interface PecaOS {
     descricao?: string;
 }
 
+export interface VeiculoImagem {
+    id: number;
+    url: string;
+    nomeOriginal: string;
+    legenda: string;
+    tamanhoBytes: number;
+    ordem: number;
+}
+
 export interface VeiculoOS {
     id: number;
     placa: string;
@@ -313,6 +322,7 @@ export interface VeiculoOS {
     cor: string;
     valorTotal: number;
     pecas: PecaOS[];
+    imagens?: VeiculoImagem[];
 }
 
 export interface VeiculoExistente {

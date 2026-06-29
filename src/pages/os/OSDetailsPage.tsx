@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { osService } from '../../services/osService';
 import { prestadorService } from '../../services/prestadorService';
 import { userService } from '../../services/userService';
-import { ArrowLeft, Car, Wrench, CheckCircle, Plus, Ban, History, FileDown, Trash2, User as UserIcon, Edit2, Save } from 'lucide-react';
+import { ArrowLeft, Car, Wrench, CheckCircle, Plus, Ban, History, FileDown, Trash2, User as UserIcon, Edit2, Save, ChevronDown, Image } from 'lucide-react';
 import { VehicleHistoryModal } from '../../components/modals/VehicleHistoryModal';
 import { DuplicatePlateModal } from '../../components/modals/DuplicatePlateModal';
 import { ActionModal } from '../../components/modals/ActionModal';
@@ -13,6 +13,7 @@ import { PdfQueueModal } from '../../components/modals/PdfQueueModal';
 import { usePdfDownload } from '../../hooks/usePdfDownload';
 import { limparPlaca, validarPlaca } from '../../utils/validators';
 import { PlateInput } from '../../components/forms/PlateInput';
+import { VeiculoImagemGrid } from '../../components/os/VeiculoImagemGrid';
 import type { ActionModalType } from '../../components/modals/ActionModal';
 import type { OSStatus, VeiculoExistente, TipoExecucao } from '../../types';
 
@@ -41,6 +42,7 @@ export const OSDetailsPage: React.FC = () => {
     }>({ isOpen: false, title: '', message: '', type: 'info' });
 
     const [isFinalizeModalOpen, setIsFinalizeModalOpen] = useState(false);
+    const [showPdfMenu, setShowPdfMenu] = useState(false);
     const [discountForm, setDiscountForm] = useState<{
         tipoDesconto: 'PERCENTUAL' | 'VALOR_FIXO' | null;
         valorDesconto: string;
@@ -503,13 +505,52 @@ export const OSDetailsPage: React.FC = () => {
                     <ArrowLeft className="w-4 h-4" /> VOLTAR
                 </button>
                 <div className="flex gap-3">
-                    {/* PDF Download - disponível para todos os status */}
-                    <button
-                        onClick={() => startPdfDownload(osService.getOSPdfPath(osId), `os-${osId}.pdf`)}
-                        className="bg-cyber-gold/20 text-cyber-gold border border-cyber-gold/50 px-4 py-2 rounded hover:bg-cyber-gold hover:text-black transition-all font-oxanium flex items-center gap-2"
-                    >
-                        <FileDown className="w-4 h-4" /> BAIXAR PDF
-                    </button>
+                    {/* PDF Download com opção de imagens */}
+                    <div className="relative">
+                        <button
+                            onClick={() => setShowPdfMenu(!showPdfMenu)}
+                            className="bg-cyber-gold/20 text-cyber-gold border border-cyber-gold/50 px-4 py-2 rounded hover:bg-cyber-gold hover:text-black transition-all font-oxanium flex items-center gap-2"
+                        >
+                            <FileDown className="w-4 h-4" /> BAIXAR PDF <ChevronDown className="w-3 h-3" />
+                        </button>
+                        {showPdfMenu && (
+                            <div className="absolute top-full mt-2 left-0 sm:left-auto sm:right-0 bg-gray-900 border border-gray-700 rounded shadow-xl z-50 w-max min-w-[240px] overflow-hidden">
+                                <button
+                                    onClick={() => {
+                                        startPdfDownload(osService.getOSPdfPath(osId), `os-${osId}.pdf`);
+                                        setShowPdfMenu(false);
+                                    }}
+                                    className="w-full text-left px-5 py-4 sm:py-3 text-gray-200 hover:bg-gray-800 hover:text-white transition-colors font-oxanium text-base sm:text-sm flex items-center gap-3 border-b border-gray-800"
+                                >
+                                    <FileDown className="w-5 h-5 sm:w-4 sm:h-4 text-cyber-gold" /> PDF sem fotos
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        startPdfDownload(
+                                            osService.getOSPdfPath(osId) + '?imagens=true',
+                                            `os-${osId}-fotos.pdf`
+                                        ).catch((err: any) => {
+                                            // Tratar erro de limite de imagens excedido
+                                            if (err?.response?.data?.error === 'TooManyImages') {
+                                                setActionModal({
+                                                    isOpen: true,
+                                                    title: 'Limite de imagens excedido',
+                                                    message: err.response.data.message || `Esta OS tem muitas fotos para incluir no PDF de uma vez (limite: ${err.response.data.limite}). Considere baixar o PDF sem imagens, ou revisar a quantidade de fotos por veículo.`,
+                                                    type: 'warning',
+                                                    showCancel: false,
+                                                    confirmText: 'Entendi',
+                                                });
+                                            }
+                                        });
+                                        setShowPdfMenu(false);
+                                    }}
+                                    className="w-full text-left px-5 py-4 sm:py-3 text-gray-200 hover:bg-gray-800 hover:text-white transition-colors font-oxanium text-base sm:text-sm flex items-center gap-3"
+                                >
+                                    <Image className="w-5 h-5 sm:w-4 sm:h-4 text-cyber-gold" /> PDF com fotos
+                                </button>
+                            </div>
+                        )}
+                    </div>
 
                     {os.status === 'ABERTA' && (
                         <>
@@ -783,6 +824,8 @@ export const OSDetailsPage: React.FC = () => {
                                         <Plus className="w-4 h-4" /> Adicionar Serviço/Peça
                                     </button>
                                 )}
+
+                                <VeiculoImagemGrid veiculoId={v.id} osId={osId} imagens={v.imagens} />
                             </div>
                         </div>
                     ))
