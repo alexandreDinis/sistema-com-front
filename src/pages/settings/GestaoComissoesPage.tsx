@@ -93,7 +93,7 @@ export const GestaoComissoesPage: React.FC = () => {
                         Gestão de Pagamentos
                     </h1>
                     <p className="text-cyber-gold/60 font-mono text-sm mt-2">
-                        Visualize e pague comissões de todos os funcionários
+                        Visualize e pague repasses de todos os prestadores
                     </p>
                 </div>
                 <div className="flex gap-3">
@@ -110,7 +110,7 @@ export const GestaoComissoesPage: React.FC = () => {
             <div className="bg-yellow-500/10 border border-yellow-500/30 p-4 flex items-start gap-3">
                 <AlertCircle className="w-5 h-5 text-yellow-500 shrink-0 mt-0.5" />
                 <p className="text-yellow-500/90 text-sm font-mono">
-                    Atenção: É necessário recalcular as comissões ao acessar esta página para garantir que os valores estejam atualizados com o faturamento mais recente.
+                    Atenção: É necessário recalcular os repasses ao acessar esta página para garantir que os valores estejam atualizados com o faturamento mais recente.
                 </p>
             </div>
 
@@ -142,7 +142,7 @@ export const GestaoComissoesPage: React.FC = () => {
                     onClick={() => recalcularMutation.mutate()}
                     disabled={recalcularMutation.isPending}
                     className="px-4 py-2 bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-colors flex items-center gap-2 ml-auto disabled:opacity-50"
-                    title="Força o recálculo de todas as comissões (exceto pagas)"
+                    title="Força o recálculo de todos os repasses (exceto pagos)"
                 >
                     {recalcularMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
                     Recalcular
@@ -154,7 +154,7 @@ export const GestaoComissoesPage: React.FC = () => {
                 isLoading && (
                     <div className="flex items-center justify-center py-20">
                         <Loader2 className="w-8 h-8 text-cyber-gold animate-spin" />
-                        <span className="ml-3 text-cyber-gold/60 font-mono">Carregando comissões...</span>
+                        <span className="ml-3 text-cyber-gold/60 font-mono">Carregando repasses...</span>
                     </div>
                 )
             }
@@ -164,7 +164,7 @@ export const GestaoComissoesPage: React.FC = () => {
                 isError && (
                     <div className="bg-red-500/10 border border-red-500/30 p-6 text-center">
                         <AlertCircle className="w-8 h-8 text-red-400 mx-auto mb-3" />
-                        <p className="text-red-400 mb-4">Erro ao carregar comissões</p>
+                        <p className="text-red-400 mb-4">Erro ao carregar repasses</p>
                         <button
                             onClick={() => refetch()}
                             className="px-4 py-2 bg-red-500/20 border border-red-500/30 text-red-400 hover:bg-red-500 hover:text-white transition-all flex items-center gap-2 mx-auto"
@@ -180,9 +180,9 @@ export const GestaoComissoesPage: React.FC = () => {
                 !isLoading && !isError && (!comissoes || comissoes.length === 0) && (
                     <div className="bg-black/40 border border-cyber-gold/20 p-10 text-center">
                         <DollarSign className="w-12 h-12 text-cyber-gold/30 mx-auto mb-4" />
-                        <h3 className="text-cyber-gold font-bold text-lg mb-2">Nenhuma Comissão</h3>
+                        <h3 className="text-cyber-gold font-bold text-lg mb-2">Nenhum Repasse</h3>
                         <p className="text-cyber-gold/50 text-sm">
-                            Nenhum funcionário tem comissão calculada para este período.
+                            Nenhum prestador tem repasse calculado para este período.
                         </p>
                     </div>
                 )
@@ -195,7 +195,7 @@ export const GestaoComissoesPage: React.FC = () => {
                         <table className="w-full border border-cyber-gold/20">
                             <thead className="bg-cyber-gold/10">
                                 <tr className="text-left text-xs font-mono text-cyber-gold/80 uppercase tracking-wider">
-                                    <th className="p-4 border-b border-cyber-gold/20">Funcionário</th>
+                                    <th className="p-4 border-b border-cyber-gold/20">Prestador</th>
                                     <th className="p-4 border-b border-cyber-gold/20 text-right">Faturamento</th>
                                     <th className="p-4 border-b border-cyber-gold/20 text-right">%</th>
                                     <th className="p-4 border-b border-cyber-gold/20 text-right">Bruto</th>
@@ -236,7 +236,7 @@ export const GestaoComissoesPage: React.FC = () => {
                                                             funcionarioNome: c.funcionarioNome
                                                         })}
                                                         className="px-3 py-1 bg-cyber-gold/20 border border-cyber-gold/40 text-cyber-gold text-xs hover:bg-cyber-gold/30 flex items-center gap-1"
-                                                        title="Lançar Adiantamento para este funcionário"
+                                                        title="Lançar Adiantamento para este prestador"
                                                     >
                                                         <Wallet size={12} /> Adiantar
                                                     </button>
@@ -273,7 +273,7 @@ export const GestaoComissoesPage: React.FC = () => {
                         isOpen: true,
                         type: 'success',
                         title: 'Sucesso',
-                        message: 'Adiantamento registrado e comissão atualizada.',
+                        message: 'Adiantamento registrado e repasse atualizado.',
                         onConfirm: () => setActionModal(prev => ({ ...prev, isOpen: false }))
                     });
                 }}

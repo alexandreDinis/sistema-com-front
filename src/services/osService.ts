@@ -5,7 +5,7 @@ import type {
     OrdemServico, CreateOSRequest,
     AddVeiculoRequest, AddPecaRequest, UpdateOSStatusRequest,
     VeiculoOS, OSStatus,
-    PlacaCheckResponse, HistoricoResponse, PageResponse
+    PlacaCheckResponse, HistoricoResponse, PageResponse, DashboardStatsResponse
 } from '../types';
 
 export const osService = {
@@ -58,6 +58,11 @@ export const osService = {
 
     listOS: async (): Promise<OrdemServico[]> => {
         const response = await api.get<OrdemServico[]>('/ordens-servico');
+        return response.data;
+    },
+
+    getDashboardStats: async (): Promise<DashboardStatsResponse> => {
+        const response = await api.get<DashboardStatsResponse>('/dashboard/stats');
         return response.data;
     },
 

@@ -9,7 +9,7 @@ const tabs = [
     { path: '/os', label: 'OS', icon: FileText, feature: Feature.OS_READ },
     { path: '/clientes', label: 'CLIENTES', icon: Users, feature: Feature.CLIENTE_READ },
     { path: '/despesa', label: 'DESPESAS', icon: TrendingDown, feature: Feature.RELATORIO_FINANCEIRO_VIEW },
-    { path: '/minha-comissao', label: 'COMISSÕES', icon: DollarSign, feature: Feature.RELATORIO_COMISSAO_VIEW },
+    { path: '/minha-comissao', label: 'REPASSES', icon: DollarSign, feature: Feature.RELATORIO_COMISSAO_VIEW },
 ];
 
 export const MobileBottomNav: React.FC = () => {

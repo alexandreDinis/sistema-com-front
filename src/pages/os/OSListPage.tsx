@@ -67,6 +67,7 @@ export const OrdemServicoListPage: React.FC = () => {
         mutationFn: osService.createOS,
         onSuccess: (data) => {
             queryClient.invalidateQueries({ queryKey: ['ordens-servico'] });
+            queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
             setIsCreateModalOpen(false);
             navigate(`/os/${data.id}`);
         }

@@ -50,7 +50,7 @@ export const ModoComissaoConfig: React.FC = () => {
                     {updateMutation.isSuccess && <Check className="w-4 h-4 text-green-400" />}
                 </h3>
                 <p className="text-cyber-gold/50 text-xs mb-4">
-                    Define como as comissões são exibidas para os funcionários.
+                    Define como os repasses são exibidos para os prestadores.
                 </p>
             </div>
 
@@ -71,7 +71,7 @@ export const ModoComissaoConfig: React.FC = () => {
                         <span className="font-bold text-cyber-gold uppercase text-sm">Individual</span>
                     </div>
                     <p className="text-xs text-cyber-gold/60">
-                        Cada funcionário vê apenas sua própria comissão e faturamento.
+                        Cada prestador vê apenas seu próprio repasse e faturamento.
                     </p>
                 </button>
 
@@ -91,7 +91,7 @@ export const ModoComissaoConfig: React.FC = () => {
                         <span className="font-bold text-cyber-gold uppercase text-sm">Coletiva</span>
                     </div>
                     <p className="text-xs text-cyber-gold/60">
-                        Todos funcionários veem a comissão total da empresa.
+                        Todos os prestadores veem o repasse total da empresa.
                     </p>
                 </button>
             </div>

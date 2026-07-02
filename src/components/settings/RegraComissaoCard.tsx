@@ -26,7 +26,7 @@ const formatDate = (dateStr: string) => {
 const getTipoRegraLabel = (tipo: string) => {
     const labels: Record<string, string> = {
         'FAIXA_FATURAMENTO': 'Faixas de Faturamento',
-        'FIXA_FUNCIONARIO': 'Fixa por Funcionário',
+        'FIXA_FUNCIONARIO': 'Fixa por Prestador',
         'FIXA_EMPRESA': 'Fixa da Empresa',
         'HIBRIDA': 'Híbrida'
     };

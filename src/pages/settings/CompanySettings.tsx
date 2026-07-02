@@ -25,12 +25,12 @@ export const CompanySettings: React.FC = () => {
                         </div>
                         <h2 className="text-xl font-bold text-cyber-gold uppercase">Sua Equipe</h2>
                     </div>
-                    <p className="text-cyber-gold/50 text-sm mb-6">Adicione funcionários, defina perfis (Mecânico, Vendedor) e gerencie acessos.</p>
+                    <p className="text-cyber-gold/50 text-sm mb-6">Adicione prestadores, defina perfis (Mecânico, Vendedor) e gerencie acessos.</p>
                     <button
                         onClick={() => navigate('/settings/team')}
                         className="px-4 py-2 bg-cyber-gold/10 border border-cyber-gold text-cyber-gold hover:bg-cyber-gold hover:text-black transition-all font-bold uppercase text-xs tracking-wider cursor-pointer"
                     >
-                        Gerenciar Funcionários
+                        Gerenciar Prestadores
                     </button>
                 </section>
 
