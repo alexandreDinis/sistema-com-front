@@ -327,11 +327,11 @@ export const DespesaForm: React.FC = () => {
                                 <option value="SERVICOS_TERCEIROS">👥 SERVIÇOS DE TERCEIROS</option>
                             </optgroup>
                             <optgroup label="── PESSOAL ──">
-                                <option value="SALARIOS">💰 SALÁRIOS</option>
+                                <option value="SALARIOS">💰 VALOR BASE DO REPASSE</option>
                                 <option value="PROLABORE">👔 PRÓ-LABORE</option>
-                                <option value="COMISSOES">🤝 COMISSÕES</option>
+                                <option value="COMISSOES">🤝 REPASSES POR SERVIÇO</option>
                                 <option value="BENEFICIOS">🎁 BENEFÍCIOS</option>
-                                <option value="ADIANTAMENTOS">💸 ADIANTAMENTOS</option>
+                                <option value="ADIANTAMENTOS">💸 ADIANTAMENTOS AO PRESTADOR</option>
                             </optgroup>
                             <optgroup label="── ADMINISTRATIVO ──">
                                 <option value="OCUPACAO">🏠 OCUPAÇÃO (ALUGUEL)</option>

@@ -65,27 +65,16 @@ export const OperationalDashboard: React.FC = () => {
             setIsSearching(false);
         }
     };
-    // Fetch stats via React Query
-    // Assuming listOS gives us all, we can filter client-side for now or mock if large
-    const { data: osList, isLoading } = useQuery({
-        queryKey: ['os-list'],
-        queryFn: osService.listOS
+    // Fetch stats via React Query from backend endpoint
+    const { data: stats, isLoading } = useQuery({
+        queryKey: ['dashboard-stats'],
+        queryFn: osService.getDashboardStats
     });
 
-    const activeOSCount = osList?.filter(os => os.status === 'ABERTA' || os.status === 'EM_EXECUCAO').length || 0;
-
-    // Monthly Stats Calculations
-    const currentMonth = new Date().getMonth();
-    const finalizedThisMonth = osList?.filter(os => os.status === 'FINALIZADA' && new Date(os.data).getMonth() === currentMonth) || [];
-
-    const completedMonthCount = finalizedThisMonth.length;
-
-    const vehiclesThisMonth = finalizedThisMonth.reduce((acc, os) => acc + (os.veiculos?.length || 0), 0);
-
-    const partsThisMonth = finalizedThisMonth.reduce((acc, os) => {
-        const partsInOS = os.veiculos?.reduce((vAcc, v) => vAcc + (v.pecas?.length || 0), 0) || 0;
-        return acc + partsInOS;
-    }, 0);
+    const activeOSCount = stats?.activeOsCount || 0;
+    const completedMonthCount = stats?.finalizedMonthCount || 0;
+    const vehiclesThisMonth = stats?.veiculosMonthCount || 0;
+    const partsThisMonth = stats?.pecasMonthCount || 0;
 
     return (
         <>

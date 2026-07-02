@@ -1,32 +1,41 @@
 import React, { useState, useEffect } from 'react';
 import { AlertCircle, X, ExternalLink } from 'lucide-react';
-import { authService } from '../../services/authService';
 import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { userService } from '../../services/userService';
 
 export const ExpirationBanner: React.FC = () => {
     const [isVisible, setIsVisible] = useState(false);
     const [daysLeft, setDaysLeft] = useState<number | undefined>(undefined);
 
+    const { data: userProfile } = useQuery({
+        queryKey: ['user-me'],
+        queryFn: userService.getMe,
+        refetchInterval: 1000 * 60 * 60 * 2, // A cada 2 horas
+        staleTime: 1000 * 60 * 30, // 30 minutos
+    });
+
     useEffect(() => {
-        const user = authService.getCurrentUser();
-        if (user && user.diasParaVencimento !== undefined && user.diasParaVencimento !== null) {
-            const dias = user.diasParaVencimento;
-            // Only show if between 0 and 5 days
-            if (dias >= 0 && dias <= 5) {
+        if (userProfile && userProfile.diasParaVencimento !== undefined && userProfile.diasParaVencimento !== null) {
+            const dias = userProfile.diasParaVencimento;
+            // Only show if between 0 and 7 days
+            if (dias >= 0 && dias <= 7) {
                 setDaysLeft(dias);
                 
-                // Check if already dismissed in this session
-                const dismissed = sessionStorage.getItem('expiration_banner_dismissed');
-                if (!dismissed) {
+                // Check if already dismissed in this session FOR THIS SPECIFIC NUMBER OF DAYS
+                const dismissedDays = sessionStorage.getItem('expiration_banner_dismissed_days');
+                if (dismissedDays !== dias.toString()) {
                     setIsVisible(true);
                 }
             }
         }
-    }, []);
+    }, [userProfile]);
 
     const handleDismiss = () => {
         setIsVisible(false);
-        sessionStorage.setItem('expiration_banner_dismissed', 'true');
+        if (daysLeft !== undefined) {
+            sessionStorage.setItem('expiration_banner_dismissed_days', daysLeft.toString());
+        }
     };
 
     if (!isVisible || daysLeft === undefined) return null;

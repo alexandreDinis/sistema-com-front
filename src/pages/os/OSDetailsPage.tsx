@@ -99,6 +99,7 @@ export const OSDetailsPage: React.FC = () => {
         mutationFn: (newUserId: number) => osService.updateOS(osId, { usuarioId: newUserId }),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['ordem-servico', osId] });
+            queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
             setIsEditingUser(false);
             alert('Responsável atualizado com sucesso!');
         },
@@ -134,6 +135,7 @@ export const OSDetailsPage: React.FC = () => {
         mutationFn: osService.addVeiculo,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['ordem-servico', osId] });
+            queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
             setVeiculoModalOpen(false);
             setVeiculoForm({ placa: '', modelo: '', cor: '' });
             setActionModal({
@@ -175,6 +177,7 @@ export const OSDetailsPage: React.FC = () => {
         mutationFn: osService.addPeca,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['ordem-servico', osId] });
+            queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
             setPecaModalOpen({ isOpen: false, veiculoId: null });
             setPecaForm({
                 tipoPecaId: '',
@@ -192,6 +195,7 @@ export const OSDetailsPage: React.FC = () => {
         mutationFn: osService.deletePeca,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['ordem-servico', osId] });
+            queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
             setActionModal({
                 isOpen: true,
                 type: 'success',
@@ -236,7 +240,7 @@ export const OSDetailsPage: React.FC = () => {
                 console.log('🔄 [SYNC] Hard Resetting system caches...');
 
                 queryClient.invalidateQueries({ queryKey: ['ordens-servico'] });
-                queryClient.invalidateQueries({ queryKey: ['os-list'] });
+                queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
 
                 // Invalidate Financial Reports to show new revenue immediately
                 queryClient.invalidateQueries({ queryKey: ['relatorio'] });
@@ -304,6 +308,7 @@ export const OSDetailsPage: React.FC = () => {
         onSuccess: () => {
             console.log('OS e veículos excluídos com sucesso, redirecionando...');
             queryClient.invalidateQueries({ queryKey: ['ordens-servico'] });
+            queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
             navigate('/os');
         },
         onError: (error) => {

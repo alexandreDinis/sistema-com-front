@@ -13,13 +13,13 @@ interface SalarioFuncionarioFormProps {
 const TIPO_REMUNERACAO_OPTIONS: { value: TipoRemuneracao; label: string; icon: React.ReactNode; description: string }[] = [
     {
         value: 'COMISSAO',
-        label: 'Comissão',
+        label: 'Repasse',
         icon: <Percent size={16} />,
         description: 'Recebe baseado nas faixas de faturamento'
     },
     {
         value: 'SALARIO_FIXO',
-        label: 'Salário Fixo',
+        label: 'Repasse Fixo',
         icon: <DollarSign size={16} />,
         description: 'Recebe valor fixo mensal'
     },
@@ -27,7 +27,7 @@ const TIPO_REMUNERACAO_OPTIONS: { value: TipoRemuneracao; label: string; icon: R
         value: 'MISTA',
         label: 'Mista',
         icon: <Briefcase size={16} />,
-        description: 'Salário base + percentual do faturamento'
+        description: 'Valor base + percentual do faturamento'
     }
 ];
 
@@ -117,7 +117,7 @@ export const SalarioFuncionarioForm: React.FC<SalarioFuncionarioFormProps> = ({
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className="text-[10px] text-cyber-gold/50 uppercase tracking-wider mb-1 block">
-                            Salário Base (R$)
+                            Valor Base do Repasse (R$)
                         </label>
                         <input
                             type="number"
@@ -169,13 +169,13 @@ export const SalarioFuncionarioForm: React.FC<SalarioFuncionarioFormProps> = ({
                     <AlertCircle size={14} className="mt-0.5 shrink-0" />
                     <div>
                         {tipoRemuneracao === 'COMISSAO' && (
-                            <p>Este funcionário receberá comissão baseada nas faixas de faturamento configuradas para a empresa.</p>
+                            <p>Este prestador receberá repasse baseado nas faixas de faturamento configuradas para a empresa.</p>
                         )}
                         {tipoRemuneracao === 'SALARIO_FIXO' && (
-                            <p>Este funcionário receberá R$ {salarioBase.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} por mês, independente do faturamento.</p>
+                            <p>Este prestador receberá R$ {salarioBase.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} por mês, independente do faturamento.</p>
                         )}
                         {tipoRemuneracao === 'MISTA' && (
-                            <p>Este funcionário receberá R$ {salarioBase.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} fixo + {percentualComissao}% do faturamento.</p>
+                            <p>Este prestador receberá R$ {salarioBase.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} fixo + {percentualComissao}% do faturamento.</p>
                         )}
                     </div>
                 </div>

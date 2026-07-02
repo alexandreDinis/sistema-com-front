@@ -74,7 +74,7 @@ export const AdiantamentoModal: React.FC<AdiantamentoModalProps> = ({
                 </div>
 
                 <div className="mb-6 p-3 bg-cyber-gold/5 border border-cyber-gold/20">
-                    <span className="text-[10px] font-mono text-cyber-gold/40 uppercase block mb-1">FUNCIONÁRIO_ALVO:</span>
+                    <span className="text-[10px] font-mono text-cyber-gold/40 uppercase block mb-1">PRESTADOR_ALVO:</span>
                     <p className="text-lg font-bold text-cyber-gold italic tracking-tight">{funcionarioNome}</p>
                 </div>
 
@@ -119,7 +119,7 @@ export const AdiantamentoModal: React.FC<AdiantamentoModalProps> = ({
                         <textarea
                             value={descricao}
                             onChange={(e) => setDescricao(e.target.value)}
-                            placeholder="Ex: Adiantamento de comissão..."
+                            placeholder="Ex: Adiantamento de repasse..."
                             className="w-full bg-black/40 border border-cyber-gold/20 text-cyber-gold p-2.5 text-xs font-mono min-h-[80px] focus:border-cyber-gold outline-none transition-all resize-none"
                         />
                     </div>

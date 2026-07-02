@@ -54,7 +54,7 @@ export const AdiantamentoForm: React.FC = () => {
 
         // ✅ OBRIGATÓRIO: Funcionário deve ser selecionado
         if (!values.usuarioId) {
-            alert('Por favor, selecione o funcionário para o adiantamento (obrigatório para auditoria)');
+            alert('Por favor, selecione o prestador para o adiantamento (obrigatório para auditoria)');
             return;
         }
 
@@ -118,7 +118,7 @@ export const AdiantamentoForm: React.FC = () => {
 
                 <div className="relative group/field">
                     <label className="hud-label group-focus-within/field:text-cyber-gold transition-colors">
-                        FUNCIONÁRIO (ALVO)
+                        PRESTADOR (ALVO)
                     </label>
                     <div className="relative">
                         <select

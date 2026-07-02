@@ -116,6 +116,17 @@ export interface PageResponse<T> {
     empty: boolean;
 }
 
+export interface DashboardStatsResponse {
+    activeOsCount: number;
+    finalizedMonthCount: number;
+    veiculosMonthCount: number;
+    pecasMonthCount: number;
+    totalAPagarPendente: number;
+    totalAReceberPendente: number;
+    contasPagarVencendoProximos7Dias: number;
+    recebimentosVencendoProximos7Dias: number;
+}
+
 export interface LoginRequest {
     email: string;
     password: string;
