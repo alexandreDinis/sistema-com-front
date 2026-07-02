@@ -101,7 +101,7 @@ export const ComissaoDashboard: React.FC = () => {
                         Módulo de Comissão Não Habilitado
                     </h2>
                     <p className="text-slate-500 font-mono text-xs max-w-lg mx-auto leading-relaxed uppercase tracking-wide">
-                        Seu perfil administrativo está configurado apenas para gestão (Salário Fixo / Pro-labore) e não participa do cálculo automático de comissões sobre vendas.
+                        Seu perfil administrativo está configurado apenas para gestão (Valor Base do Repasse) e não participa do cálculo automático de repasses sobre vendas.
                     </p>
                     <div className="w-12 h-px bg-cyber-gold/20 mx-auto my-6"></div>
                     <p className="text-[10px] text-slate-600 uppercase">

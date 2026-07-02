@@ -108,7 +108,7 @@ export const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({ user, onCl
                 <div className="bg-cyber-gold/10 p-4 border-b border-cyber-gold/20 flex justify-between items-center">
                     <h2 className="text-xl font-black text-cyber-gold uppercase tracking-wider flex items-center gap-2">
                         {isEditing ? <UserCheck size={20} /> : <User size={20} />}
-                        {isEditing ? 'Editar Funcionário' : 'Novo Funcionário'}
+                        {isEditing ? 'Editar Prestador' : 'Novo Prestador'}
                     </h2>
                     <button onClick={onClose} className="text-cyber-gold/60 hover:text-cyber-gold transition-colors">
                         <X size={24} />
@@ -144,7 +144,7 @@ export const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({ user, onCl
                                     className={`w-full bg-black/60 border border-cyber-gold/30 text-cyber-gold p-2 outline-none focus:border-cyber-gold transition-colors ${isEditing ? 'opacity-50 cursor-not-allowed' : ''}`}
                                     value={formData.email}
                                     onChange={e => setFormData({ ...formData, email: e.target.value })}
-                                    placeholder="funcionario@loja.com"
+                                    placeholder="prestador@loja.com"
                                 />
                             </div>
                             {!isEditing && (
@@ -184,7 +184,7 @@ export const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({ user, onCl
                                             : 'bg-transparent text-cyber-gold/50 border-cyber-gold/30 hover:border-cyber-gold hover:text-cyber-gold'
                                             }`}
                                     >
-                                        {role === 'ADMIN_EMPRESA' ? 'Administrador' : 'Funcionário'}
+                                        {role === 'ADMIN_EMPRESA' ? 'Administrador' : 'Prestador'}
                                     </button>
                                 ))}
                             </div>
@@ -253,7 +253,7 @@ export const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({ user, onCl
                     {/* Commission Opt-In/Out */}
                     <div className="space-y-4">
                         <h3 className="text-xs font-bold text-cyber-gold/50 uppercase tracking-widest border-b border-cyber-gold/10 pb-1 mb-2">
-                            Configuração de Comissão
+                            Configuração de Repasse
                         </h3>
                         <div className="flex items-center gap-3 bg-black/40 border border-cyber-gold/20 p-3 rounded-sm">
                             <input

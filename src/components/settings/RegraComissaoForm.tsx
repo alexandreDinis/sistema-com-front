@@ -218,7 +218,7 @@ export const RegraComissaoForm: React.FC<RegraComissaoFormProps> = ({
                                     onChange={e => setFormData(prev => ({ ...prev, tipoRegra: e.target.value as TipoRegraComissao }))}
                                 >
                                     <option value="FAIXA_FATURAMENTO">Faixas de Faturamento</option>
-                                    <option value="FIXA_FUNCIONARIO">Fixa por Funcionário</option>
+                                    <option value="FIXA_FUNCIONARIO">Fixa por Prestador</option>
                                     <option value="FIXA_EMPRESA">Fixa da Empresa</option>
                                     <option value="HIBRIDA">Híbrida</option>
                                 </select>

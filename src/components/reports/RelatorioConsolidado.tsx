@@ -146,7 +146,7 @@ export const RelatorioConsolidado: React.FC<RelatorioConsolidadoProps> = ({ ano,
                                 <span className="text-cyber-gold/60">{formatCurrency(report.imposto)}</span>
                             </div>
                             <div className="flex justify-between items-center text-[10px] font-mono">
-                                <span className="text-cyber-gold/40">ALOC_COMISSÃO</span>
+                                <span className="text-cyber-gold/40">ALOC_REPASSE</span>
                                 <span className="text-cyber-gold/60">{formatCurrency(report.comissaoAlocada)}</span>
                             </div>
                         </div>

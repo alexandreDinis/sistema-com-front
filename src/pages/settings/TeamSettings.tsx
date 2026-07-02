@@ -62,7 +62,7 @@ export const TeamSettings: React.FC = () => {
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-cyber-gold/50" size={18} />
                     <input
                         type="text"
-                        placeholder="Buscar funcionário..."
+                        placeholder="Buscar prestador..."
                         className="w-full bg-black/60 border border-cyber-gold/30 text-cyber-gold pl-10 pr-4 py-2 rounded-sm focus:outline-none focus:border-cyber-gold transition-colors font-mono text-sm"
                         value={searchTerm}
                         onChange={e => setSearchTerm(e.target.value)}
@@ -101,7 +101,7 @@ export const TeamSettings: React.FC = () => {
                                 <div className="flex justify-between items-center text-xs border-b border-cyber-gold/10 pb-2">
                                     <span className="text-cyber-gold/40 uppercase tracking-widest">Cargo</span>
                                     <span className={`font-bold ${user.role === 'ADMIN_EMPRESA' ? 'text-cyber-gold' : 'text-gray-400'}`}>
-                                        {user.role === 'ADMIN_EMPRESA' ? 'ADMINISTRADOR' : 'FUNCIONÁRIO'}
+                                        {user.role === 'ADMIN_EMPRESA' ? 'ADMINISTRADOR' : 'PRESTADOR'}
                                     </span>
                                 </div>
                                 <div className="flex justify-between items-center text-xs border-b border-cyber-gold/10 pb-2">
