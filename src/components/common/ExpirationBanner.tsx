@@ -16,10 +16,17 @@ export const ExpirationBanner: React.FC = () => {
     });
 
     useEffect(() => {
-        if (userProfile && userProfile.diasParaVencimento !== undefined && userProfile.diasParaVencimento !== null) {
+        // Só exibir para ADMIN_EMPRESA — nunca para SUPER_ADMIN, REVENDEDOR ou FUNCIONARIO
+        if (!userProfile || userProfile.role !== 'ADMIN_EMPRESA') {
+            setIsVisible(false);
+            setDaysLeft(undefined);
+            return;
+        }
+
+        if (userProfile.diasParaVencimento !== undefined && userProfile.diasParaVencimento !== null) {
             const dias = userProfile.diasParaVencimento;
-            // Only show if between 0 and 7 days
-            if (dias >= 0 && dias <= 7) {
+            // Mostrar apenas se faltam 5 dias ou menos (spec: <= 5)
+            if (dias >= 0 && dias <= 5) {
                 setDaysLeft(dias);
                 
                 // Check if already dismissed in this session FOR THIS SPECIFIC NUMBER OF DAYS
@@ -27,7 +34,14 @@ export const ExpirationBanner: React.FC = () => {
                 if (dismissedDays !== dias.toString()) {
                     setIsVisible(true);
                 }
+            } else {
+                setIsVisible(false);
+                setDaysLeft(undefined);
             }
+        } else {
+            // Sem fatura pendente próxima — esconder banner
+            setIsVisible(false);
+            setDaysLeft(undefined);
         }
     }, [userProfile]);
 
@@ -40,14 +54,20 @@ export const ExpirationBanner: React.FC = () => {
 
     if (!isVisible || daysLeft === undefined) return null;
 
+    // Cores dinâmicas conforme urgência
+    const isUrgent = daysLeft <= 2;
+    const bannerGradient = isUrgent
+        ? 'from-red-600 to-red-700'       // Vermelho: <= 2 dias
+        : 'from-amber-500 to-orange-500';  // Amarelo: 3-5 dias
+
     const getMessage = () => {
-        if (daysLeft === 0) return "Sua assinatura vence HOJE! Regularize agora para evitar o bloqueio amanhã.";
-        if (daysLeft === 1) return "Sua assinatura vence AMANHÃ! Regularize agora para garantir seu acesso.";
-        return `Sua assinatura vence em ${daysLeft} dias. Não deixe para a última hora!`;
+        if (daysLeft === 0) return "Seu plano vence HOJE! Regularize seu pagamento para evitar bloqueio.";
+        if (daysLeft === 1) return "Seu plano vence AMANHÃ! Regularize seu pagamento para evitar bloqueio.";
+        return `Seu plano vence em ${daysLeft} dias. Regularize seu pagamento para evitar bloqueio.`;
     };
 
     return (
-        <div className="bg-gradient-to-r from-red-600 to-orange-600 text-white py-3 px-4 shadow-lg border-b border-white/10 animate-pulse-subtle z-70 relative">
+        <div className={`bg-gradient-to-r ${bannerGradient} text-white py-3 px-4 shadow-lg border-b border-white/10 animate-pulse-subtle z-70 relative`}>
             <div className="container mx-auto flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                     <div className="bg-white/20 p-1.5 rounded-full shrink-0">
