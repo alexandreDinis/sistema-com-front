@@ -34,6 +34,7 @@ export interface Licenca {
     gatewayPagamento?: string;
     // Status
     status: 'ATIVA' | 'SUSPENSA' | 'CANCELADA';
+    vitalicia?: boolean;
     dataAtivacao?: string;
     dataSuspensao?: string;
     motivoSuspensao?: string;

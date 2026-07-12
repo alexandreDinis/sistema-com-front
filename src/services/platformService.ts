@@ -15,6 +15,7 @@ export interface TenantSummary {
     cnpj: string;
     plano: 'BRONZE' | 'PRATA' | 'OURO';
     ativo: boolean;
+    vitalicia?: boolean;
     dataCriacao: string;
     dataAtualizacao?: string;
     // Frontend convenience computed property
@@ -147,6 +148,34 @@ export const platformService = {
     // PUT /api/v1/platform/tenants/{id}/reset-password
     resetTenantPassword: async (id: number, newPassword: string): Promise<void> => {
         await api.put(`${BASE_URL}/tenants/${id}/reset-password`, { newPassword });
+    },
+
+    // ========================================
+    // VITALÍCIO (Lifetime)
+    // ========================================
+
+    // PUT /api/v1/platform/licencas/{id}/tornar-vitalicia
+    tornarLicencaVitalicia: async (id: number): Promise<LicencaSummary> => {
+        const response = await api.put<LicencaSummary>(`${BASE_URL}/licencas/${id}/tornar-vitalicia`);
+        return response.data;
+    },
+
+    // PUT /api/v1/platform/licencas/{id}/revogar-vitalicia
+    revogarLicencaVitalicia: async (id: number): Promise<LicencaSummary> => {
+        const response = await api.put<LicencaSummary>(`${BASE_URL}/licencas/${id}/revogar-vitalicia`);
+        return response.data;
+    },
+
+    // PUT /api/v1/platform/tenants/{id}/tornar-vitalicio
+    tornarTenantVitalicio: async (id: number): Promise<TenantSummary> => {
+        const response = await api.put<TenantSummary>(`${BASE_URL}/tenants/${id}/tornar-vitalicio`);
+        return response.data;
+    },
+
+    // PUT /api/v1/platform/tenants/{id}/revogar-vitalicio
+    revogarTenantVitalicio: async (id: number): Promise<TenantSummary> => {
+        const response = await api.put<TenantSummary>(`${BASE_URL}/tenants/${id}/revogar-vitalicio`);
+        return response.data;
     }
 };
 
@@ -158,6 +187,7 @@ export interface LicencaSummary {
     cnpj: string;
     email: string;
     status: 'ATIVA' | 'SUSPENSA' | 'CANCELADA';
+    vitalicia?: boolean;
     planoTipo?: string;
 }
 
