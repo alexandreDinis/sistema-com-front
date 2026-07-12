@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { licencaService } from '../../services/licencaService';
 import { platformService } from '../../services/platformService';
 import type { Licenca, LicencaCreateRequest, PlanoLicenca } from '../../services/licencaService';
-import { Plus, Building2, Mail, Phone, AlertTriangle, CheckCircle, Ban, Loader2, Edit2, DollarSign, Unlock } from 'lucide-react';
+import { Plus, Building2, Mail, Phone, AlertTriangle, CheckCircle, Ban, Loader2, Edit2, DollarSign, Unlock, Infinity, ShieldOff } from 'lucide-react';
 
 export const PlatformResellers: React.FC = () => {
     const queryClient = useQueryClient();
@@ -56,6 +56,19 @@ export const PlatformResellers: React.FC = () => {
         }
     });
 
+    const toggleVitaliciaMutation = useMutation({
+        mutationFn: (licenca: Licenca) => {
+            if (licenca.vitalicia) {
+                return platformService.revogarLicencaVitalicia(licenca.id);
+            } else {
+                return platformService.tornarLicencaVitalicia(licenca.id);
+            }
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['licencas'] });
+        }
+    });
+
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         const formData = new FormData(e.currentTarget);
@@ -95,6 +108,13 @@ export const PlatformResellers: React.FC = () => {
         }
     };
 
+    const handleToggleVitalicia = (licenca: Licenca) => {
+        const action = licenca.vitalicia ? 'REVOGAR a licença vitalícia de' : 'tornar VITALÍCIA a licença de';
+        if (confirm(`Tem certeza que deseja ${action} "${licenca.razaoSocial}"?\n\n${licenca.vitalicia ? 'A licença voltará ao ciclo normal de cobrança.' : 'A licença nunca receberá faturas e não será suspensa por inadimplência.'}`)) {
+            toggleVitaliciaMutation.mutate(licenca);
+        }
+    };
+
     const handleEdit = (licenca: Licenca) => {
         setEditingLicenca(licenca);
         setIsModalOpen(true);
@@ -105,15 +125,24 @@ export const PlatformResellers: React.FC = () => {
         setEditingLicenca(null);
     };
 
-    const getStatusBadge = (status: string) => {
-        switch (status) {
-            case 'ATIVA':
-                return <span className="flex items-center gap-1 text-green-400 text-xs font-medium"><CheckCircle size={12} /> Ativa</span>;
-            case 'SUSPENSA':
-                return <span className="flex items-center gap-1 text-red-400 text-xs font-medium"><Ban size={12} /> Suspensa</span>;
-            default:
-                return <span className="flex items-center gap-1 text-slate-400 text-xs font-medium"><AlertTriangle size={12} /> {status}</span>;
-        }
+    const getStatusBadge = (licenca: Licenca) => {
+        const status = licenca.status;
+        return (
+            <div className="flex items-center gap-2">
+                {status === 'ATIVA' ? (
+                    <span className="flex items-center gap-1 text-green-400 text-xs font-medium"><CheckCircle size={12} /> Ativa</span>
+                ) : status === 'SUSPENSA' ? (
+                    <span className="flex items-center gap-1 text-red-400 text-xs font-medium"><Ban size={12} /> Suspensa</span>
+                ) : (
+                    <span className="flex items-center gap-1 text-slate-400 text-xs font-medium"><AlertTriangle size={12} /> {status}</span>
+                )}
+                {licenca.vitalicia && (
+                    <span className="flex items-center gap-1 text-purple-400 bg-purple-950/30 border border-purple-900/50 px-2 py-0.5 rounded text-xs font-bold">
+                        <Infinity size={12} /> VITALÍCIA
+                    </span>
+                )}
+            </div>
+        );
     };
 
     const licencas = licencasResponse?.content || [];
@@ -164,7 +193,7 @@ export const PlatformResellers: React.FC = () => {
                                         {licenca.telefone && <div className="flex items-center gap-1 text-slate-400 text-xs mt-1"><Phone size={12} /> {licenca.telefone}</div>}
                                     </td>
                                     <td className="p-4 text-slate-300">{licenca.planoTipo}</td>
-                                    <td className="p-4">{getStatusBadge(licenca.status)}</td>
+                                    <td className="p-4">{getStatusBadge(licenca)}</td>
                                     <td className="p-4 flex gap-2">
                                         <button onClick={() => handleEdit(licenca)} className="text-blue-400 hover:text-blue-300 p-1 bg-blue-900/20 rounded" title="Editar">
                                             <Edit2 size={16} />
@@ -200,6 +229,20 @@ export const PlatformResellers: React.FC = () => {
                                                 <Unlock size={16} />
                                             </button>
                                         )}
+
+                                        <button
+                                            onClick={() => handleToggleVitalicia(licenca)}
+                                            disabled={toggleVitaliciaMutation.isPending}
+                                            className={`p-1 rounded ml-2 flex items-center gap-1 border ${
+                                                licenca.vitalicia
+                                                    ? 'text-red-400 bg-red-900/20 hover:text-red-300 border-red-800/50'
+                                                    : 'text-purple-400 bg-purple-900/20 hover:text-purple-300 border-purple-800/50'
+                                            }`}
+                                            title={licenca.vitalicia ? 'Revogar Licença Vitalícia' : 'Tornar Vitalícia'}
+                                        >
+                                            {licenca.vitalicia ? <ShieldOff size={16} /> : <Infinity size={16} />}
+                                            <span className="text-xs">{licenca.vitalicia ? 'Revogar' : 'Vitalícia'}</span>
+                                        </button>
                                     </td>
                                 </tr>
                             ))}

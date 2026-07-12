@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { platformService } from '../../services/platformService';
 import type { TenantSummary, TenantUpdateRequest } from '../../services/platformService';
-import { Ban, CheckCircle, Search, Plus, Building2, Calendar, Pencil, X, KeyRound, Loader2, DollarSign } from 'lucide-react';
+import { Ban, CheckCircle, Search, Plus, Building2, Calendar, Pencil, X, KeyRound, Loader2, DollarSign, Infinity, ShieldOff } from 'lucide-react';
 import { TenantOnboarding } from '../../components/platform/TenantOnboarding';
 
 export const PlatformTenants: React.FC = () => {
@@ -55,6 +55,19 @@ export const PlatformTenants: React.FC = () => {
         }
     });
 
+    const toggleVitalicioMutation = useMutation({
+        mutationFn: (tenant: TenantSummary) => {
+            if (tenant.vitalicia) {
+                return platformService.revogarTenantVitalicio(tenant.id);
+            } else {
+                return platformService.tornarTenantVitalicio(tenant.id);
+            }
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['platform-tenants'] });
+        }
+    });
+
     const filteredTenants = tenants?.filter(c =>
         c.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
         c.cnpj.includes(searchTerm)
@@ -69,6 +82,13 @@ export const PlatformTenants: React.FC = () => {
     const handleDarBaixa = (tenant: TenantSummary) => {
         if (confirm(`Confirmar recebimento de pagamento e renovação para ${tenant.nome}?`)) {
             darBaixaMutation.mutate(tenant.id);
+        }
+    };
+
+    const handleToggleVitalicio = (tenant: TenantSummary) => {
+        const action = tenant.vitalicia ? 'REVOGAR o plano vitalício de' : 'tornar VITALÍCIO o tenant';
+        if (confirm(`Tem certeza que deseja ${action} ${tenant.nome}?\n\n${tenant.vitalicia ? 'O tenant voltará ao ciclo normal de cobrança.' : 'O tenant nunca receberá faturas e não será bloqueado por inadimplência.'}`)) {
+            toggleVitalicioMutation.mutate(tenant);
         }
     };
 
@@ -136,17 +156,25 @@ export const PlatformTenants: React.FC = () => {
                                         </span>
                                     </td>
                                     <td className="p-4">
-                                        {!tenant.ativo ? (
-                                            <div className="flex items-center gap-2 text-red-400 bg-red-950/30 border border-red-900/50 px-2 py-1 rounded w-fit">
-                                                <Ban size={14} />
-                                                <span className="text-xs font-bold">BLOQUEADO</span>
-                                            </div>
-                                        ) : (
-                                            <div className="flex items-center gap-2 text-green-400 bg-green-950/30 border border-green-900/50 px-2 py-1 rounded w-fit">
-                                                <CheckCircle size={14} />
-                                                <span className="text-xs font-bold">ATIVO</span>
-                                            </div>
-                                        )}
+                                        <div className="flex items-center gap-2">
+                                            {!tenant.ativo ? (
+                                                <div className="flex items-center gap-2 text-red-400 bg-red-950/30 border border-red-900/50 px-2 py-1 rounded w-fit">
+                                                    <Ban size={14} />
+                                                    <span className="text-xs font-bold">BLOQUEADO</span>
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center gap-2 text-green-400 bg-green-950/30 border border-green-900/50 px-2 py-1 rounded w-fit">
+                                                    <CheckCircle size={14} />
+                                                    <span className="text-xs font-bold">ATIVO</span>
+                                                </div>
+                                            )}
+                                            {tenant.vitalicia && (
+                                                <div className="flex items-center gap-1 text-purple-400 bg-purple-950/30 border border-purple-900/50 px-2 py-1 rounded w-fit">
+                                                    <Infinity size={14} />
+                                                    <span className="text-xs font-bold">VITALÍCIO</span>
+                                                </div>
+                                            )}
+                                        </div>
                                     </td>
                                     <td className="p-4 font-mono text-slate-300 text-sm">
                                         <div className="flex items-center gap-2 text-slate-400">
@@ -188,6 +216,18 @@ export const PlatformTenants: React.FC = () => {
                                                 title="Registrar Pagamento / Renovar Assinatura"
                                             >
                                                 <DollarSign size={18} />
+                                            </button>
+                                            <button
+                                                onClick={() => handleToggleVitalicio(tenant)}
+                                                disabled={toggleVitalicioMutation.isPending}
+                                                className={`p-2 rounded transition-colors ml-1 border ${
+                                                    tenant.vitalicia
+                                                        ? 'text-red-400 bg-red-900/20 hover:bg-red-900/40 border-red-800/50'
+                                                        : 'text-purple-400 bg-purple-900/20 hover:bg-purple-900/40 border-purple-800/50'
+                                                }`}
+                                                title={tenant.vitalicia ? 'Revogar Plano Vitalício' : 'Tornar Vitalício'}
+                                            >
+                                                {tenant.vitalicia ? <ShieldOff size={18} /> : <Infinity size={18} />}
                                             </button>
                                         </div>
                                     </td>
