@@ -1,457 +1,522 @@
-import React, { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { AlertTriangle, CheckCircle2, CreditCard, Wallet } from 'lucide-react';
 import { despesaService } from '../../services/despesaService';
 import { cartaoService } from '../../services/cartaoService';
-import type { DespesaRequest, CartaoCredito, LimiteDisponivelDTO } from '../../types';
+import { calcularMesReferenciaFatura } from '../../utils/faturaUtils';
+import type { CartaoCredito, Despesa, DespesaRequest } from '../../types';
 
-export const DespesaForm: React.FC = () => {
+interface DespesaFormProps {
+    cartoes?: CartaoCredito[];
+}
+
+const getTodayIso = () => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+};
+
+const formatCurrency = (val: number) =>
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+
+export const DespesaForm: React.FC<DespesaFormProps> = ({ cartoes: cartoesProp }) => {
     const queryClient = useQueryClient();
-    const [values, setValues] = useState<DespesaRequest>({
-        dataDespesa: new Date().toISOString().split('T')[0],
-        valor: '' as any,
-        categoria: 'BENEFICIOS',
-        descricao: '',
-        pagoAgora: false, // Default: A Prazo
-        meioPagamento: '',
-        dataVencimento: '',
-        numeroParcelas: 1
-    });
+    const [modo, setModo] = useState<'cartao' | 'comum'>('comum');
+    const [cartoesLocal, setCartoesLocal] = useState<CartaoCredito[]>([]);
+    const cartoes = cartoesProp ?? cartoesLocal;
+
+    const [dataDespesa, setDataDespesa] = useState(getTodayIso());
+    const [valorStr, setValorStr] = useState('');
+    const [categoria, setCategoria] = useState('DIVERSOS');
+    const [descricao, setDescricao] = useState('');
+    const [pagoAgora, setPagoAgora] = useState(false);
+    const [meioPagamento, setMeioPagamento] = useState('');
+    const [dataVencimento, setDataVencimento] = useState('');
+    const [cartaoId, setCartaoId] = useState<number | undefined>(undefined);
+    const [numeroParcelas, setNumeroParcelas] = useState(1);
+
     const [error, setError] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState(false);
 
-    // Credit Card State
-    const [cartoes, setCartoes] = useState<CartaoCredito[]>([]);
-    const [limiteInfo, setLimiteInfo] = useState<LimiteDisponivelDTO | null>(null);
-    const [loadingLimite, setLoadingLimite] = useState(false);
-
-    React.useEffect(() => {
-        cartaoService.listar().then(setCartoes).catch(console.error);
-    }, []);
-
-    React.useEffect(() => {
-        if (values.cartaoId) {
-            setLoadingLimite(true);
-            cartaoService.getLimiteDisponivel(values.cartaoId)
-                .then(setLimiteInfo)
-                .catch(err => {
-                    console.error('Failed to fetch limit:', err);
-                    setLimiteInfo(null);
-                })
-                .finally(() => setLoadingLimite(false));
-        } else {
-            setLimiteInfo(null);
+    useEffect(() => {
+        if (!cartoesProp) {
+            cartaoService.listar().then(setCartoesLocal).catch(console.error);
         }
-    }, [values.cartaoId]);
+    }, [cartoesProp]);
 
-    const { mutate, isPending: isLoading } = useMutation({
-        mutationFn: (data: DespesaRequest): Promise<any> => {
+    // Ao alternar para modo cartão, selecionar automaticamente o primeiro cartão se houver
+    const handleSetModo = (novoModo: 'cartao' | 'comum') => {
+        setModo(novoModo);
+        setError(null);
+        if (novoModo === 'cartao') {
+            if (!cartaoId && cartoes.length > 0) {
+                setCartaoId(cartoes[0].id);
+            }
+            setPagoAgora(false);
+            setMeioPagamento('CARTAO_CREDITO');
+            setDataVencimento('');
+        } else {
+            setCartaoId(undefined);
+            setNumeroParcelas(1);
+            setMeioPagamento('');
+        }
+    };
+
+    const { data: limiteInfo = null, isLoading: loadingLimite } = useQuery({
+        queryKey: ['cartao-limite', cartaoId],
+        queryFn: () => cartaoService.getLimiteDisponivel(cartaoId!),
+        enabled: modo === 'cartao' && Boolean(cartaoId),
+    });
+
+    const cartaoSelecionado = useMemo(
+        () => cartoes.find((c) => c.id === cartaoId),
+        [cartoes, cartaoId]
+    );
+
+    const previaFatura = useMemo(() => {
+        if (modo !== 'cartao' || !cartaoSelecionado) return null;
+        return calcularMesReferenciaFatura(dataDespesa, cartaoSelecionado.diaFechamento);
+    }, [modo, cartaoSelecionado, dataDespesa]);
+
+    const numericValor = useMemo(() => {
+        if (!valorStr) return 0;
+        const parsed = parseFloat(valorStr.replace(/\./g, '').replace(',', '.'));
+        return Number.isNaN(parsed) ? 0 : parsed;
+    }, [valorStr]);
+
+    const { mutate, isPending: isLoading } = useMutation<Despesa | Despesa[], unknown, DespesaRequest>({
+        mutationFn: async (data) => {
             if (data.cartaoId && data.numeroParcelas && data.numeroParcelas > 1) {
-                // @ts-ignore - Valid runtime behavior, ignoring TS union complexity for now
                 return despesaService.createParcelada(data);
             }
             return despesaService.create(data);
         },
         onSuccess: () => {
             setSuccessMessage(true);
-            setValues({
-                dataDespesa: new Date().toISOString().split('T')[0],
-                valor: '' as any,
-                categoria: 'BENEFICIOS',
-                descricao: '',
-                pagoAgora: false,
-                meioPagamento: '',
-                dataVencimento: '',
-                numeroParcelas: 1
-            });
+            setValorStr('');
+            setDescricao('');
+            setNumeroParcelas(1);
+            queryClient.invalidateQueries({ queryKey: ['cartao-limite'] });
             queryClient.invalidateQueries({ queryKey: ['comissao'] });
             queryClient.invalidateQueries({ queryKey: ['relatorio'] });
             queryClient.invalidateQueries({ queryKey: ['despesas'] });
+            queryClient.invalidateQueries({ queryKey: ['financeiro'] });
+            queryClient.invalidateQueries({ queryKey: ['faturas'] });
             setTimeout(() => setSuccessMessage(false), 3000);
         },
-        onError: (err: any) => {
-            setError(err.response?.data?.message || 'Falha na sequência de registro de despesa.');
+        onError: (err: unknown) => {
+            const axiosErr = err as { response?: { data?: { message?: string } } };
+            setError(axiosErr.response?.data?.message || 'Falha ao registrar despesa.');
         },
     });
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-        const { name, value } = e.target;
-        setValues((prev) => {
-            const newValues = { ...prev, [name]: value };
-
-            // Logic: If Card selected (cartaoId), force 'A Prazo', hide Vencimento (backend handles), set MeioPagamento = CREDITO
-            if (name === 'cartaoId') {
-                if (value) {
-                    return {
-                        ...newValues,
-                        cartaoId: Number(value),
-                        pagoAgora: false,
-                        dataVencimento: undefined, // Backend will calculate invoice due date
-                        meioPagamento: 'CARTAO_CREDITO',
-                        numeroParcelas: 1 // Default to 1
-                    };
-                } else {
-                    return {
-                        ...newValues,
-                        cartaoId: undefined,
-                        meioPagamento: ''
-                    };
-                }
-            }
-            return newValues;
-        });
-        setError(null);
-    };
-
-    const handleToggle = () => {
-        setValues(prev => ({ ...prev, pagoAgora: !prev.pagoAgora }));
-    };
-
     const handleValorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        let value = e.target.value.replace(/\D/g, '');
-        if (value === '') {
-            setValues((prev) => ({ ...prev, valor: '' as any }));
+        const digits = e.target.value.replace(/\D/g, '');
+        if (!digits) {
+            setValorStr('');
             return;
         }
-        const numericValue = parseInt(value) / 100;
-        const formatted = new Intl.NumberFormat('pt-BR', {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-        }).format(numericValue);
-
-        setValues((prev) => ({ ...prev, valor: formatted as any }));
+        const num = parseInt(digits, 10) / 100;
+        setValorStr(
+            new Intl.NumberFormat('pt-BR', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            }).format(num)
+        );
+        setError(null);
     };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        setError(null);
 
-        const numericValor = typeof values.valor === 'string'
-            ? parseFloat((values.valor as string).replace(/\./g, '').replace(',', '.'))
-            : values.valor;
-
-        if (isNaN(numericValor) || numericValor <= 0) {
-            setError('VALORAÇÃO_VÁLIDA_NECESSÁRIA_PARA_ALOC_0x1');
+        if (numericValor <= 0) {
+            setError('Informe um valor válido maior que zero.');
             return;
         }
 
-        if (values.pagoAgora && !values.meioPagamento) {
-            setError('PARA_PAGAMENTO_A_VISTA_MEIO_OBRIGATORIO');
+        if (modo === 'cartao') {
+            if (!cartaoId) {
+                setError('Selecione um cartão de crédito.');
+                return;
+            }
+            mutate({
+                dataDespesa,
+                valor: numericValor,
+                categoria,
+                descricao,
+                pagoAgora: false,
+                meioPagamento: 'CARTAO_CREDITO',
+                cartaoId,
+                numeroParcelas,
+            });
             return;
         }
 
-        if (!values.pagoAgora && !values.cartaoId && !values.dataVencimento) {
-            setError('PARA_A_PRAZO_VENCIMENTO_OBRIGATORIO');
+        if (pagoAgora && !meioPagamento) {
+            setError('Para pagamento à vista, informe o meio de pagamento.');
+            return;
+        }
+
+        if (!pagoAgora && !dataVencimento) {
+            setError('Para despesa a prazo, informe a data de vencimento.');
             return;
         }
 
         mutate({
-            ...values,
+            dataDespesa,
             valor: numericValor,
+            categoria,
+            descricao,
+            pagoAgora,
+            dataVencimento: pagoAgora ? undefined : dataVencimento,
+            meioPagamento: meioPagamento || undefined,
+            numeroParcelas: 1,
         });
     };
 
-    return (
-        <div className="hud-card top-brackets bottom-brackets p-8 max-w-md mx-auto relative overflow-hidden bg-black/60">
-            <div className="static-overlay opacity-10"></div>
+    const percentualUsado =
+        limiteInfo && limiteInfo.limiteTotal
+            ? Math.min(100, Math.max(0, ((limiteInfo.limiteUtilizado || 0) / limiteInfo.limiteTotal) * 100))
+            : 0;
 
-            <div className="flex justify-between items-center mb-10 pb-4 border-b border-cyber-gold/20">
-                <h2 className="text-xl font-black text-cyber-gold tracking-widest uppercase italic italic-shadow">
-                    [CONSOLE_DESPESAS_V1]
+    return (
+        <div className="bg-[#0f1117] border border-cyber-gold/25 rounded-xl p-5 shadow-lg">
+            <div className="flex items-center justify-between pb-3.5 mb-4 border-b border-white/10">
+                <h2 className="text-base font-bold text-cyber-gold tracking-wide flex items-center gap-2">
+                    <span>＋</span> Novo Lançamento
                 </h2>
-                <span className="text-[8px] font-mono text-cyber-gold/40">REGISTROS_OVR: ATIVADO</span>
+                <span className="text-[11px] font-mono text-gray-400 bg-white/5 px-2 py-0.5 rounded">
+                    Automático
+                </span>
+            </div>
+
+            {/* Alternador visual: Cartão vs Comum */}
+            <div className="grid grid-cols-2 gap-1 bg-black/70 border border-cyber-gold/20 rounded-lg p-1 mb-5">
+                <button
+                    type="button"
+                    onClick={() => handleSetModo('cartao')}
+                    className={`flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                        modo === 'cartao'
+                            ? 'bg-cyber-gold text-black shadow'
+                            : 'text-gray-400 hover:text-gray-200'
+                    }`}
+                >
+                    <CreditCard size={14} />
+                    Cartão de Crédito
+                </button>
+                <button
+                    type="button"
+                    onClick={() => handleSetModo('comum')}
+                    className={`flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                        modo === 'comum'
+                            ? 'bg-cyber-gold text-black shadow'
+                            : 'text-gray-400 hover:text-gray-200'
+                    }`}
+                >
+                    <Wallet size={14} />
+                    Despesa Comum
+                </button>
             </div>
 
             {error && (
-                <div className="border border-cyber-error bg-cyber-error/5 p-4 text-cyber-error text-[10px] font-mono mb-6 relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-1 h-full bg-cyber-error animate-pulse"></div>
-                    <span className="font-black uppercase block mb-1">FLUXO_ERRO_STDOUT:</span>
-                    {error}
+                <div className="border border-cyber-error/60 bg-cyber-error/10 rounded-lg p-3 text-cyber-error text-xs mb-4 flex items-start gap-2">
+                    <AlertTriangle size={15} className="shrink-0 mt-0.5" />
+                    <span>{error}</span>
                 </div>
             )}
 
             {successMessage && (
-                <div className="border border-cyber-gold bg-cyber-gold/5 p-4 text-cyber-gold text-[10px] font-mono mb-6 relative overflow-hidden animate-pulse">
-                    <div className="absolute top-0 left-0 w-1 h-full bg-cyber-gold"></div>
-                    <span className="font-black uppercase block mb-1">STDOUT_SUCCESS:</span>
-                    ALLOC_STABLE. EXPENSE_NODE_SYNCED.
+                <div className="border border-emerald-500/50 bg-emerald-500/10 rounded-lg p-3 text-emerald-300 text-xs mb-4 flex items-center gap-2">
+                    <CheckCircle2 size={15} className="shrink-0" />
+                    <span>Lançamento salvo com sucesso!</span>
                 </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-8">
+            <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Bloco Cartão */}
+                {modo === 'cartao' && (
+                    <div>
+                        <label className="block text-xs font-semibold text-gray-300 mb-1.5">
+                            Cartão Corporativo
+                        </label>
+                        {cartoes.length === 0 ? (
+                            <p className="text-xs text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-lg p-2.5">
+                                Nenhum cartão ativo cadastrado. Cadastre um cartão em Financeiro → Cartões.
+                            </p>
+                        ) : (
+                            <select
+                                value={cartaoId ?? ''}
+                                onChange={(e) => {
+                                    setCartaoId(e.target.value ? Number(e.target.value) : undefined);
+                                    setError(null);
+                                }}
+                                className="w-full bg-[#161923] border border-white/10 text-gray-100 text-sm rounded-lg p-2.5 outline-none focus:border-cyber-gold transition-colors cursor-pointer"
+                                style={{ colorScheme: 'dark' }}
+                                required
+                            >
+                                <option value="">Selecione um cartão...</option>
+                                {cartoes.map((c) => (
+                                    <option key={c.id} value={c.id}>
+                                        {c.nome} (Fecha dia {c.diaFechamento ?? 25} · Vence dia {c.diaVencimento})
+                                    </option>
+                                ))}
+                            </select>
+                        )}
 
-                {/* Credit Card Selector */}
-                <div className="relative group/field">
-                    <label className="hud-label group-focus-within/field:text-cyber-gold transition-colors">
-                        CARTÃO CORPORATIVO (Opcional)
-                    </label>
-                    <div className="relative">
-                        <select
-                            name="cartaoId"
-                            value={values.cartaoId || ''}
-                            onChange={handleChange}
-                            className="w-full bg-black border border-cyber-gold/30 text-cyber-gold text-sm font-mono p-3 pr-10 outline-none focus:border-cyber-gold focus:shadow-[0_0_10px_rgba(212,175,55,0.2)] transition-all appearance-none cursor-pointer"
-                            style={{ colorScheme: 'dark' }}
-                        >
-                            <option value="" className="bg-black text-cyber-gold">— NENHUM (Despesa Comum) —</option>
-                            {cartoes.map(c => (
-                                <option key={c.id} value={c.id} className="bg-black text-cyber-gold">
-                                    💳 {c.nome} (Vence dia {c.diaVencimento})
-                                </option>
-                            ))}
-                        </select>
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                            <svg className="w-4 h-4 text-cyber-gold/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
-                        </div>
+                        {cartaoId && (
+                            <div className="mt-2 bg-[#161923] border border-cyber-gold/20 rounded-lg p-2.5 text-xs">
+                                {loadingLimite ? (
+                                    <span className="text-gray-400 animate-pulse">Consultando limite disponível...</span>
+                                ) : limiteInfo && limiteInfo.limiteTotal != null ? (
+                                    <div>
+                                        <div className="flex justify-between text-gray-400">
+                                            <span>Limite disponível</span>
+                                            <strong
+                                                className={
+                                                    (limiteInfo.limiteDisponivel || 0) < 0
+                                                        ? 'text-cyber-error'
+                                                        : 'text-cyber-gold'
+                                                }
+                                            >
+                                                {formatCurrency(limiteInfo.limiteDisponivel || 0)} /{' '}
+                                                {formatCurrency(limiteInfo.limiteTotal)}
+                                            </strong>
+                                        </div>
+                                        <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden mt-1.5">
+                                            <div
+                                                className="h-full bg-cyber-gold transition-all duration-300"
+                                                style={{ width: `${percentualUsado}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <span className="text-gray-400">
+                                        Agrupado automaticamente na fatura mensal do cartão.
+                                    </span>
+                                )}
+                            </div>
+                        )}
                     </div>
-                    {values.cartaoId && (
-                        <div className="mt-2 text-[10px] font-mono border border-cyber-gold/20 bg-cyber-gold/5 p-2 rounded relative overflow-hidden">
-                            {loadingLimite ? (
-                                <span className="text-cyber-gold/50 animate-pulse">CARREGANDO_DADOS_BANCARIOS...</span>
-                            ) : limiteInfo ? (
-                                <div className="flex flex-col gap-1">
-                                    <div className="flex justify-between border-b border-cyber-gold/10 pb-1 mb-1">
-                                        <span className="text-cyber-gold/60">DISPONÍVEL:</span>
-                                        <span className={`font-black ${(limiteInfo.limiteDisponivel || 0) < 0 ? 'text-cyber-error' : 'text-cyber-gold'
-                                            }`}>
-                                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(limiteInfo.limiteDisponivel || 0)}
-                                        </span>
-                                    </div>
-                                    <div className="flex justify-between text-cyber-gold/40">
-                                        <span>LIMITE TOTAL:</span>
-                                        <span>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(limiteInfo.limiteTotal || 0)}</span>
-                                    </div>
-                                    <div className="w-full h-1 bg-black/40 mt-1 rounded-full overflow-hidden">
-                                        <div
-                                            className="h-full bg-cyber-gold transition-all duration-500"
-                                            style={{ width: `${Math.min(100, Math.max(0, ((limiteInfo.limiteUtilizado || 0) / (limiteInfo.limiteTotal || 1)) * 100))}%` }}
-                                        />
-                                    </div>
-                                </div>
-                            ) : (
-                                <p className="text-cyber-gold/50 tracking-wide">
-                                    ⚡ Despesa será agrupada na fatura do cartão automaticamente
-                                </p>
-                            )}
-                        </div>
-                    )}
+                )}
+
+                {/* Data + Valor */}
+                <div className="grid grid-cols-2 gap-3">
+                    <div>
+                        <label className="block text-xs font-semibold text-gray-300 mb-1.5">
+                            {modo === 'cartao' ? 'Data da Compra' : 'Data da Despesa'}
+                        </label>
+                        <input
+                            type="date"
+                            value={dataDespesa}
+                            onChange={(e) => {
+                                setDataDespesa(e.target.value);
+                                setError(null);
+                            }}
+                            className="w-full bg-[#161923] border border-white/10 text-gray-100 text-sm rounded-lg p-2.5 outline-none focus:border-cyber-gold transition-colors"
+                            style={{ colorScheme: 'dark' }}
+                            required
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-semibold text-gray-300 mb-1.5">
+                            Valor (R$)
+                        </label>
+                        <input
+                            type="text"
+                            inputMode="numeric"
+                            value={valorStr}
+                            onChange={handleValorChange}
+                            placeholder="0,00"
+                            className="w-full bg-[#161923] border border-white/10 text-cyber-gold font-bold text-sm rounded-lg p-2.5 outline-none focus:border-cyber-gold transition-colors"
+                            required
+                        />
+                    </div>
                 </div>
 
-                {/* Parcelas Field - Only if Card Selected */}
-                {values.cartaoId && (
-                    <div className="relative group/field">
-                        <label className="hud-label group-focus-within/field:text-cyber-gold transition-colors">
-                            PARCELAS (1x à 12x)
+                {/* Prévia da Fatura em tempo real */}
+                {modo === 'cartao' && cartaoSelecionado && previaFatura && (
+                    <div
+                        className={`rounded-lg p-2.5 text-xs border flex items-start gap-2 ${
+                            previaFatura.caiuProximoMes
+                                ? 'bg-amber-500/10 border-amber-500/40 text-amber-200'
+                                : 'bg-emerald-500/10 border-emerald-500/35 text-emerald-200'
+                        }`}
+                    >
+                        {previaFatura.caiuProximoMes ? (
+                            <AlertTriangle size={15} className="shrink-0 mt-0.5 text-amber-400" />
+                        ) : (
+                            <CheckCircle2 size={15} className="shrink-0 mt-0.5 text-emerald-400" />
+                        )}
+                        <div>
+                            <div className="font-bold">
+                                Fatura de destino: {previaFatura.labelMes} ({previaFatura.mesReferencia})
+                            </div>
+                            <div className="text-[11px] opacity-85 mt-0.5">
+                                {previaFatura.caiuProximoMes
+                                    ? `Após fechamento (dia ${cartaoSelecionado.diaFechamento ?? 25}) — cairá na fatura do mês seguinte.`
+                                    : `Dentro do fechamento (até dia ${cartaoSelecionado.diaFechamento ?? 25}) — entra na fatura deste mês.`}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Parcelamento (apenas cartão) */}
+                {modo === 'cartao' && (
+                    <div>
+                        <label className="block text-xs font-semibold text-gray-300 mb-1.5">
+                            Parcelamento
                         </label>
                         <select
-                            name="numeroParcelas"
-                            value={values.numeroParcelas}
-                            onChange={handleChange}
-                            className="w-full bg-black border border-cyber-gold/30 text-cyber-gold text-sm font-mono p-3 outline-none focus:border-cyber-gold transition-all appearance-none cursor-pointer"
+                            value={numeroParcelas}
+                            onChange={(e) => setNumeroParcelas(Number(e.target.value))}
+                            className="w-full bg-[#161923] border border-white/10 text-gray-100 text-sm rounded-lg p-2.5 outline-none focus:border-cyber-gold cursor-pointer"
                             style={{ colorScheme: 'dark' }}
                         >
-                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(num => {
-                                const numericValor = typeof values.valor === 'string'
-                                    ? parseFloat((values.valor as string).replace(/\./g, '').replace(',', '.')) || 0
-                                    : values.valor as number || 0;
-
-                                const valorParcela = numericValor > 0
-                                    ? (numericValor / num).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-                                    : '';
-
+                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((num) => {
+                                const vParc = numericValor > 0 ? ` — ${formatCurrency(numericValor / num)}` : '';
                                 return (
-                                    <option key={num} value={num} className="bg-black text-cyber-gold">
-                                        {num}x {valorParcela ? `- ${valorParcela}` : ''} {num === 1 ? '(À Vista)' : ''}
+                                    <option key={num} value={num}>
+                                        {num}x{vParc} {num === 1 ? '(À vista na fatura)' : ''}
                                     </option>
                                 );
                             })}
                         </select>
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                            <svg className="w-4 h-4 text-cyber-gold/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
-                        </div>
                     </div>
                 )}
 
-                {/* Toggle Pago Agora - Only show if NO card selected */}
-                {!values.cartaoId && (
-                    <div className="flex items-center justify-between bg-cyber-gold/5 p-4 border border-cyber-gold/10">
-                        <div>
-                            <span className="text-cyber-gold font-bold text-xs block">PAGO À VISTA?</span>
-                            <span className="text-[9px] text-cyber-gold/50 block">Marque "Sim" se o dinheiro já saiu do caixa.</span>
-                        </div>
-                        <button
-                            type="button"
-                            onClick={handleToggle}
-                            className={`w-12 h-6 flex items-center rounded-none p-1 border transition-all ${values.pagoAgora
-                                ? 'bg-cyber-gold/20 border-cyber-gold justify-end'
-                                : 'bg-black/40 border-cyber-gold/30 justify-start'
+                {/* Opções Despesa Comum */}
+                {modo === 'comum' && (
+                    <div className="space-y-3 bg-white/[0.02] border border-white/10 rounded-lg p-3">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <span className="text-xs font-semibold text-gray-200 block">Pago à vista?</span>
+                                <span className="text-[11px] text-gray-400 block">
+                                    Marque se o valor já saiu do caixa hoje.
+                                </span>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setPagoAgora((p) => !p)}
+                                className={`w-11 h-6 flex items-center rounded-full p-0.5 transition-colors cursor-pointer ${
+                                    pagoAgora ? 'bg-cyber-gold justify-end' : 'bg-white/15 justify-start'
                                 }`}
-                        >
-                            <div className={`w-4 h-4 transition-all ${values.pagoAgora ? 'bg-cyber-gold' : 'bg-cyber-gold/30'
-                                }`} />
-                        </button>
+                                aria-label="Alternar pago à vista"
+                            >
+                                <div className="w-5 h-5 rounded-full bg-black shadow" />
+                            </button>
+                        </div>
+
+                        {pagoAgora ? (
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-300 mb-1.5">
+                                    Meio de Pagamento
+                                </label>
+                                <select
+                                    value={meioPagamento}
+                                    onChange={(e) => setMeioPagamento(e.target.value)}
+                                    className="w-full bg-[#161923] border border-white/10 text-gray-100 text-sm rounded-lg p-2.5 outline-none focus:border-cyber-gold cursor-pointer"
+                                    style={{ colorScheme: 'dark' }}
+                                    required
+                                >
+                                    <option value="">Selecione...</option>
+                                    <option value="PIX">PIX</option>
+                                    <option value="DINHEIRO">Dinheiro</option>
+                                    <option value="CARTAO_DEBITO">Cartão de Débito</option>
+                                    <option value="TRANSFERENCIA">Transferência (TED/DOC)</option>
+                                    <option value="BOLETO">Boleto</option>
+                                    <option value="CHEQUE">Cheque</option>
+                                </select>
+                            </div>
+                        ) : (
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-300 mb-1.5">
+                                    Data de Vencimento
+                                </label>
+                                <input
+                                    type="date"
+                                    value={dataVencimento}
+                                    onChange={(e) => setDataVencimento(e.target.value)}
+                                    className="w-full bg-[#161923] border border-white/10 text-gray-100 text-sm rounded-lg p-2.5 outline-none focus:border-cyber-gold"
+                                    style={{ colorScheme: 'dark' }}
+                                    required
+                                />
+                            </div>
+                        )}
                     </div>
                 )}
 
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="relative group/field">
-                        <label className="hud-label group-focus-within/field:text-cyber-gold transition-colors">
-                            CARIMBO_DATA
-                        </label>
-                        <input
-                            type="date"
-                            name="dataDespesa"
-                            value={values.dataDespesa}
-                            onChange={handleChange}
-                            className="w-full bg-black/40 border border-cyber-gold/10 text-cyber-gold text-xs font-mono p-3 outline-none focus:border-cyber-gold transition-all"
-                            required
-                        />
-                    </div>
-
-                    <div className="relative group/field">
-                        <label className="hud-label group-focus-within/field:text-cyber-gold transition-colors">
-                            ID_CATEGORIA
-                        </label>
-                        <select
-                            name="categoria"
-                            value={values.categoria}
-                            onChange={handleChange}
-                            className="w-full bg-black border border-cyber-gold/30 text-cyber-gold text-sm font-mono p-3 outline-none focus:border-cyber-gold transition-all appearance-none cursor-pointer"
-                            style={{ colorScheme: 'dark' }}
-                            required
-                        >
-                            <optgroup label="── SERVIÇOS PRESTADOS ──">
-                                <option value="MATERIAIS_APLICADOS">🔩 MATERIAIS APLICADOS</option>
-                                <option value="SERVICOS_TERCEIROS">👥 SERVIÇOS DE TERCEIROS</option>
-                            </optgroup>
-                            <optgroup label="── PESSOAL ──">
-                                <option value="SALARIOS">💰 VALOR BASE DO REPASSE</option>
-                                <option value="PROLABORE">👔 PRÓ-LABORE</option>
-                                <option value="COMISSOES">🤝 REPASSES POR SERVIÇO</option>
-                                <option value="BENEFICIOS">🎁 BENEFÍCIOS</option>
-                                <option value="ADIANTAMENTOS">💸 ADIANTAMENTOS AO PRESTADOR</option>
-                            </optgroup>
-                            <optgroup label="── ADMINISTRATIVO ──">
-                                <option value="OCUPACAO">🏠 OCUPAÇÃO (ALUGUEL)</option>
-                                <option value="UTILIDADES">💡 UTILIDADES (LUZ/ÁGUA)</option>
-                                <option value="MANUTENCAO_PREDIAL">🔨 MANUTENÇÃO PREDIAL</option>
-                                <option value="MATERIAL_USO_CONSUMO">📎 MATERIAL DE USO E CONSUMO</option>
-                                <option value="SERVICOS_PROFISSIONAIS">⚖️ SERVIÇOS PROFISSIONAIS</option>
-                            </optgroup>
-                            <optgroup label="── COMERCIAL ──">
-                                <option value="MARKETING">📢 MARKETING</option>
-                                <option value="VIAGENS_REPRESENTACAO">✈️ VIAGENS</option>
-                                <option value="COMBUSTIVEL">⛽ COMBUSTÍVEL</option>
-                                <option value="ALIMENTACAO">🍽️ ALIMENTAÇÃO</option>
-                                <option value="MANUTENCAO_VEICULO">🔧 MANUTENÇÃO VEÍCULO</option>
-                            </optgroup>
-                            <optgroup label="── FINANCEIRO ──">
-                                <option value="TARIFAS_BANCARIAS">🏦 TARIFAS BANCÁRIAS</option>
-                                <option value="JUROS_PASSIVOS">📉 JUROS PASSIVOS</option>
-                            </optgroup>
-                            <optgroup label="── TRIBUTÁRIO ──">
-                                <option value="IMPOSTOS_SOBRE_VENDA">📋 IMPOSTOS SOBRE VENDA</option>
-                                <option value="TAXAS_DIVERSAS">🎫 TAXAS DIVERSAS</option>
-                            </optgroup>
-                            <optgroup label="── OUTROS ──">
-                                <option value="DIVERSOS">📦 DIVERSOS</option>
-                                <option value="OUTROS">❓ OUTROS</option>
-                            </optgroup>
-                        </select>
-                    </div>
+                {/* Categoria */}
+                <div>
+                    <label className="block text-xs font-semibold text-gray-300 mb-1.5">Categoria</label>
+                    <select
+                        value={categoria}
+                        onChange={(e) => setCategoria(e.target.value)}
+                        className="w-full bg-[#161923] border border-white/10 text-gray-100 text-sm rounded-lg p-2.5 outline-none focus:border-cyber-gold cursor-pointer"
+                        style={{ colorScheme: 'dark' }}
+                        required
+                    >
+                        <optgroup label="── SERVIÇOS PRESTADOS ──">
+                            <option value="MATERIAIS_APLICADOS">🔩 Materiais Aplicados</option>
+                            <option value="SERVICOS_TERCEIROS">👥 Serviços de Terceiros</option>
+                        </optgroup>
+                        <optgroup label="── PESSOAL ──">
+                            <option value="SALARIOS">💰 Valor Base do Repasse</option>
+                            <option value="PROLABORE">👔 Pró-labore</option>
+                            <option value="COMISSOES">🤝 Repasses por Serviço</option>
+                            <option value="BENEFICIOS">🎁 Benefícios</option>
+                            <option value="ADIANTAMENTOS">💸 Adiantamentos ao Prestador</option>
+                        </optgroup>
+                        <optgroup label="── ADMINISTRATIVO ──">
+                            <option value="OCUPACAO">🏠 Ocupação (Aluguel)</option>
+                            <option value="UTILIDADES">💡 Utilidades (Luz/Água)</option>
+                            <option value="MANUTENCAO_PREDIAL">🔨 Manutenção Predial</option>
+                            <option value="MATERIAL_USO_CONSUMO">📎 Material de Uso e Consumo</option>
+                            <option value="SERVICOS_PROFISSIONAIS">⚖️ Serviços Profissionais</option>
+                        </optgroup>
+                        <optgroup label="── COMERCIAL ──">
+                            <option value="MARKETING">📢 Marketing</option>
+                            <option value="VIAGENS_REPRESENTACAO">✈️ Viagens</option>
+                            <option value="COMBUSTIVEL">⛽ Combustível</option>
+                            <option value="ALIMENTACAO">🍽️ Alimentação</option>
+                            <option value="MANUTENCAO_VEICULO">🔧 Manutenção Veículo</option>
+                        </optgroup>
+                        <optgroup label="── FINANCEIRO ──">
+                            <option value="TARIFAS_BANCARIAS">🏦 Tarifas Bancárias</option>
+                            <option value="JUROS_PASSIVOS">📉 Juros Passivos</option>
+                        </optgroup>
+                        <optgroup label="── TRIBUTÁRIO ──">
+                            <option value="IMPOSTOS_SOBRE_VENDA">📋 Impostos sobre Venda</option>
+                            <option value="TAXAS_DIVERSAS">🎫 Taxas Diversas</option>
+                        </optgroup>
+                        <optgroup label="── OUTROS ──">
+                            <option value="DIVERSOS">📦 Diversos</option>
+                            <option value="OUTROS">❓ Outros</option>
+                        </optgroup>
+                    </select>
                 </div>
 
-                <div className="relative group/field">
-                    <label className="hud-label group-focus-within/field:text-cyber-gold transition-colors">
-                        ALLOC_VALUE (BRL)
-                    </label>
-                    <div className="relative">
-                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-cyber-gold/40 font-black font-mono text-xs">
-                            EXP_
-                        </span>
-                        <input
-                            type="text"
-                            name="valor"
-                            value={values.valor}
-                            onChange={handleValorChange}
-                            className="w-full bg-black/40 border border-cyber-gold/10 text-cyber-gold text-lg font-black italic p-3 pl-14 outline-none focus:border-cyber-gold focus:shadow-[0_0_20px_rgba(212,175,55,0.15)] transition-all"
-                            placeholder="0,00"
-                            required
-                        />
-                    </div>
-                </div>
-
-                {/* Conditional Fields */}
-                <div className="grid grid-cols-2 gap-4">
-                    {!values.pagoAgora && !values.cartaoId && (
-                        <div className="relative group/field">
-                            <label className="hud-label group-focus-within/field:text-cyber-gold transition-colors">
-                                VENCIMENTO
-                            </label>
-                            <input
-                                type="date"
-                                name="dataVencimento"
-                                value={values.dataVencimento || ''}
-                                onChange={handleChange}
-                                className="w-full bg-black/40 border border-cyber-gold/10 text-cyber-gold text-xs font-mono p-3 outline-none focus:border-cyber-gold transition-all"
-                                required={!values.pagoAgora}
-                            />
-                        </div>
-                    )}
-
-                    <div className={`relative group/field ${values.pagoAgora ? 'col-span-2' : ''}`}>
-                        <label className="hud-label group-focus-within/field:text-cyber-gold transition-colors">
-                            MEIO DE PAGAMENTO {values.pagoAgora ? '*' : '(Opcional)'}
-                        </label>
-                        <select
-                            name="meioPagamento"
-                            value={values.meioPagamento || ''}
-                            onChange={handleChange}
-                            className="w-full bg-black border border-cyber-gold/30 text-cyber-gold text-sm font-mono p-3 outline-none focus:border-cyber-gold transition-all appearance-none cursor-pointer"
-                            style={{ colorScheme: 'dark' }}
-                            required={values.pagoAgora}
-                        >
-                            <option value="">SELECIONE...</option>
-                            <option value="DINHEIRO">DINHEIRO</option>
-                            <option value="PIX">PIX</option>
-                            <option value="CARTAO_CREDITO">CARTÃO DE CRÉDITO</option>
-                            <option value="CARTAO_DEBITO">CARTÃO DE DÉBITO</option>
-                            <option value="BOLETO">BOLETO</option>
-                            <option value="TRANSFERENCIA">TRANSFERÊNCIA</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div className="relative group/field">
-                    <label className="hud-label group-focus-within/field:text-cyber-gold transition-colors">
-                        METADATA_DESCRIPTION
-                    </label>
-                    <textarea
-                        name="descricao"
-                        value={values.descricao}
-                        onChange={handleChange as any}
-                        className="w-full bg-black/40 border border-cyber-gold/10 text-cyber-gold text-xs font-mono p-3 min-h-[80px] outline-none focus:border-cyber-gold transition-all resize-none"
-                        placeholder="FLUXO_CONTEXTO..."
-                        rows={2}
+                {/* Descrição */}
+                <div>
+                    <label className="block text-xs font-semibold text-gray-300 mb-1.5">Descrição</label>
+                    <input
+                        type="text"
+                        value={descricao}
+                        onChange={(e) => setDescricao(e.target.value)}
+                        placeholder="Ex.: Fornecedor, combustível, almoço..."
+                        className="w-full bg-[#161923] border border-white/10 text-gray-100 text-sm rounded-lg p-2.5 outline-none focus:border-cyber-gold transition-colors"
                     />
                 </div>
 
-                <div className="pt-2">
-                    <button
-                        type="submit"
-                        disabled={isLoading}
-                        className="w-full hud-button"
-                    >
-                        {isLoading ? '>>> SINCRONIZANDO...' : values.pagoAgora ? 'REGISTRAR PAGAMENTO (CAIXA)' : 'REGISTRAR CONTA (A PRAZO)'}
-                    </button>
-                </div>
-
-                <div className="flex justify-between items-center pt-2 text-[7px] text-cyber-gold/20 font-mono tracking-widest uppercase">
-                    <span>OBOOS_SEC_EXP_v4</span>
-                    <span>TAG: OUTBOUND_STREAM</span>
-                </div>
+                <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full bg-cyber-gold text-black font-extrabold text-sm py-3 px-4 rounded-lg hover:brightness-110 transition-all disabled:opacity-50 cursor-pointer"
+                >
+                    {isLoading ? 'Salvando...' : 'Salvar Lançamento'}
+                </button>
             </form>
         </div>
     );
