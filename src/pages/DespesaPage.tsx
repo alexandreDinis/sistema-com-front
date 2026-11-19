@@ -1,12 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { DespesaForm } from '../components/forms/DespesaForm';
-import { ChevronRight, Home, Trash2, Calendar, Tag, CreditCard } from 'lucide-react';
+import { DespesaEditModal } from '../components/modals/DespesaEditModal';
+import { ChevronRight, Home, Trash2, Calendar, Tag, CreditCard, Pencil } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { despesaService } from '../services/despesaService';
+import { formatarDataLocal } from '../utils/faturaUtils';
+import type { Despesa } from '../types';
 
 export const DespesaPage: React.FC = () => {
     const queryClient = useQueryClient();
+    const [despesaEditando, setDespesaEditando] = useState<Despesa | null>(null);
 
     const { data: despesas = [], isLoading } = useQuery({
         queryKey: ['despesas'],
@@ -98,27 +102,37 @@ export const DespesaPage: React.FC = () => {
                                             <div className="flex items-center gap-3 text-[10px] text-cyber-gold/40 font-mono">
                                                 <span className="flex items-center gap-1">
                                                     <Calendar size={10} />
-                                                    {new Date(despesa.dataDespesa).toLocaleDateString('pt-BR')}
+                                                    {formatarDataLocal(despesa.dataDespesa)}
                                                 </span>
                                                 <span className="uppercase">{despesa.categoria?.replace('_', ' ')}</span>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center gap-6">
+                                    <div className="flex items-center gap-4">
                                         <div className="text-right">
                                             <span className="text-sm font-black text-cyber-gold">
                                                 {formatCurrency(despesa.valor)}
                                             </span>
                                         </div>
 
-                                        <button
-                                            onClick={() => handleDelete(despesa.id)}
-                                            className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-red-500/10 text-red-500/50 hover:text-red-500 border border-transparent hover:border-red-500/30 rounded"
-                                            title="Excluir Registro"
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
+                                        <div className="flex items-center gap-1">
+                                            <button
+                                                onClick={() => setDespesaEditando(despesa)}
+                                                className="p-2 hover:bg-cyber-gold/10 text-cyber-gold/60 hover:text-cyber-gold border border-transparent hover:border-cyber-gold/30 rounded transition-colors"
+                                                title="Editar Registro"
+                                            >
+                                                <Pencil size={16} />
+                                            </button>
+
+                                            <button
+                                                onClick={() => handleDelete(despesa.id)}
+                                                className="p-2 hover:bg-red-500/10 text-red-500/50 hover:text-red-500 border border-transparent hover:border-red-500/30 rounded transition-colors"
+                                                title="Excluir Registro"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             ))
@@ -126,6 +140,13 @@ export const DespesaPage: React.FC = () => {
                     </div>
                 )}
             </div>
+
+            {despesaEditando && (
+                <DespesaEditModal
+                    despesa={despesaEditando}
+                    onClose={() => setDespesaEditando(null)}
+                />
+            )}
         </div>
     );
 };
