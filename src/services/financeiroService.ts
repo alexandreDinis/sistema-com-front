@@ -5,7 +5,9 @@ import type {
     ResumoFinanceiro,
     FluxoCaixa,
     PagarContaRequest,
-    ReceberContaRequest
+    ReceberContaRequest,
+    EstornarContaRequest,
+    EstornoContaPagar,
 } from '../types';
 
 export const financeiroService = {
@@ -21,6 +23,16 @@ export const financeiroService = {
 
     pagarConta: async (id: number, request: PagarContaRequest): Promise<ContaPagar> => {
         const response = await api.post(`/financeiro/contas-pagar/${id}/pagar`, request);
+        return response.data;
+    },
+
+    estornarContaPagar: async (id: number, request: EstornarContaRequest): Promise<EstornoContaPagar> => {
+        const response = await api.post(`/financeiro/contas-pagar/${id}/estornar`, request);
+        return response.data;
+    },
+
+    listarEstornos: async (): Promise<EstornoContaPagar[]> => {
+        const response = await api.get('/financeiro/estornos');
         return response.data;
     },
 

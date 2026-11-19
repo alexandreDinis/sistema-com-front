@@ -1,33 +1,25 @@
 import { useEffect, useState } from 'react';
-import { financeiroService } from '../../services/financeiroService';
-import type { ContaPagar } from '../../types';
-import { CreditCard, Calendar, CheckCircle } from 'lucide-react';
-
-const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-        style: 'currency',
-        currency: 'BRL'
-    }).format(value);
-};
-
 import { useQueryClient } from '@tanstack/react-query';
+import { Calendar, CheckCircle, CreditCard } from 'lucide-react';
+import { financeiroService } from '../../services/financeiroService';
+import { ConfirmarPagamentoModal } from '../../components/modals/ConfirmarPagamentoModal';
+import { formatarDataLocal } from '../../utils/faturaUtils';
+import type { ContaPagar } from '../../types';
+
+const formatCurrency = (value: number) =>
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
 const FaturasPage = () => {
     const queryClient = useQueryClient();
     const [faturas, setFaturas] = useState<ContaPagar[]>([]);
     const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        loadFaturas();
-    }, []);
+    const [faturaSelecionada, setFaturaSelecionada] = useState<ContaPagar | null>(null);
 
     const loadFaturas = async () => {
         try {
             setLoading(true);
             const data = await financeiroService.listarContasPagar('PENDENTE');
-            // Filter locally for FATURA_CARTAO since backend endpoint is generic
-            // Ideally backend should support type filtering
-            const faturasCartao = data.filter(c => c.tipo === 'FATURA_CARTAO');
+            const faturasCartao = data.filter((c) => c.tipo === 'FATURA_CARTAO');
             setFaturas(faturasCartao);
         } catch (err) {
             console.error('Erro ao carregar faturas:', err);
@@ -36,25 +28,18 @@ const FaturasPage = () => {
         }
     };
 
-    const handlePagar = async (fatura: ContaPagar) => {
-        if (!confirm(`Confirma o pagamento da fatura de ${formatCurrency(fatura.valor)}?`)) return;
+    useEffect(() => {
+        loadFaturas();
+    }, []);
 
-        try {
-            await financeiroService.pagarConta(fatura.id, {
-                meioPagamento: 'TRANSFERENCIA', // Defaulting to Transferencia for invoice payment
-                dataPagamento: new Date().toISOString().split('T')[0]
-            });
-
-            // Invalidate Report Cache
-            queryClient.invalidateQueries({ queryKey: ['relatorio'] });
-            queryClient.invalidateQueries({ queryKey: ['despesas'] });
-            queryClient.invalidateQueries({ queryKey: ['financeiro'] });
-
-            loadFaturas();
-        } catch (err) {
-            console.error('Erro ao pagar fatura:', err);
-            alert('Erro ao processar pagamento');
-        }
+    const handlePagamentoConcluido = () => {
+        queryClient.invalidateQueries({ queryKey: ['relatorio'] });
+        queryClient.invalidateQueries({ queryKey: ['despesas'] });
+        queryClient.invalidateQueries({ queryKey: ['financeiro'] });
+        queryClient.invalidateQueries({ queryKey: ['faturas'] });
+        queryClient.invalidateQueries({ queryKey: ['cartao-limite'] });
+        setFaturaSelecionada(null);
+        loadFaturas();
     };
 
     if (loading) {
@@ -68,7 +53,6 @@ const FaturasPage = () => {
 
     return (
         <div className="min-h-[calc(100vh-64px)] py-6 space-y-6 animate-fadeIn">
-            {/* Header */}
             <header className="flex items-center justify-between flex-wrap gap-4">
                 <div className="flex items-center gap-3">
                     <span className="w-2 h-10 bg-cyan-500"></span>
@@ -77,13 +61,12 @@ const FaturasPage = () => {
                             Faturas de Cartão
                         </h1>
                         <p className="text-cyber-gold/50 font-mono text-xs tracking-[0.3em]">
-                            // CONTAS A PAGAR CONSOLIDDAS
+                            // CONTAS A PAGAR CONSOLIDADAS
                         </p>
                     </div>
                 </div>
             </header>
 
-            {/* List */}
             <div className="grid gap-4">
                 {faturas.length === 0 ? (
                     <div className="p-12 hud-card text-center text-gray-500">
@@ -91,7 +74,10 @@ const FaturasPage = () => {
                     </div>
                 ) : (
                     faturas.map((fatura) => (
-                        <div key={fatura.id} className="hud-card p-6 flex flex-col md:flex-row items-center justify-between gap-6 group hover:border-cyan-500/30 transition-all">
+                        <div
+                            key={fatura.id}
+                            className="hud-card p-6 flex flex-col md:flex-row items-center justify-between gap-6 group hover:border-cyan-500/30 transition-all"
+                        >
                             <div className="flex items-center gap-4">
                                 <div className="p-4 rounded-full bg-cyan-500/10 text-cyan-400">
                                     <CreditCard size={24} />
@@ -100,11 +86,16 @@ const FaturasPage = () => {
                                     <h3 className="font-bold text-lg text-white group-hover:text-cyan-400 transition-colors">
                                         {fatura.descricao}
                                     </h3>
-                                    <div className="flex items-center gap-4 text-sm text-gray-400 mt-1">
+                                    <div className="flex items-center gap-4 text-sm text-gray-400 mt-1 flex-wrap">
                                         <span className="flex items-center gap-1">
                                             <Calendar size={14} />
-                                            Vence: {new Date(fatura.dataVencimento).toLocaleDateString('pt-BR')}
+                                            Vence: {formatarDataLocal(fatura.dataVencimento)}
                                         </span>
+                                        {fatura.dataCompetencia && (
+                                            <span className="text-xs text-gray-500 font-mono">
+                                                Fecha: {formatarDataLocal(fatura.dataCompetencia)}
+                                            </span>
+                                        )}
                                         <span className="font-mono text-xs px-2 py-0.5 rounded bg-yellow-500/10 text-yellow-500">
                                             PENDENTE
                                         </span>
@@ -121,8 +112,9 @@ const FaturasPage = () => {
                                 </div>
 
                                 <button
-                                    onClick={() => handlePagar(fatura)}
-                                    className="hud-btn bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 border-cyan-500/50 flex items-center gap-2"
+                                    type="button"
+                                    onClick={() => setFaturaSelecionada(fatura)}
+                                    className="hud-btn bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 border-cyan-500/50 flex items-center gap-2 cursor-pointer"
                                 >
                                     <CheckCircle size={18} />
                                     REGISTRAR PAGAMENTO
@@ -132,6 +124,15 @@ const FaturasPage = () => {
                     ))
                 )}
             </div>
+
+            {faturaSelecionada && (
+                <ConfirmarPagamentoModal
+                    conta={faturaSelecionada}
+                    meioPagamentoInicial="TRANSFERENCIA"
+                    onClose={() => setFaturaSelecionada(null)}
+                    onSuccess={handlePagamentoConcluido}
+                />
+            )}
         </div>
     );
 };

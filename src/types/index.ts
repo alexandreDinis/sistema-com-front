@@ -530,7 +530,29 @@ export interface ContaPagar {
     meioPagamento?: MeioPagamento;
     numeroParcela?: number;
     totalParcelas?: number;
+    mesReferencia?: string;
+    cartao?: CartaoCredito;
     dataCriacao: string;
+}
+
+export interface EstornarContaRequest {
+    motivo: string;
+    reabrirConta?: boolean;
+}
+
+export interface EstornoContaPagar {
+    id: number;
+    contaPagarOriginal: ContaPagar;
+    contaPagarReaberta?: ContaPagar | null;
+    valorEstornado: number;
+    dataPagamentoOriginal: string;
+    meioPagamentoOriginal?: MeioPagamento;
+    dataEstorno: string;
+    motivo: string;
+    usuario?: {
+        id: number;
+        email: string;
+    };
 }
 
 export interface Recebimento {

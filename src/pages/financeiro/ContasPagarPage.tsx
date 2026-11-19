@@ -1,8 +1,10 @@
 import { useEffect, useState, useMemo } from 'react';
 import { financeiroService } from '../../services/financeiroService';
-import type { ContaPagar, MeioPagamento, ResumoFinanceiro } from '../../types';
+import type { ContaPagar, ResumoFinanceiro } from '../../types';
 import { useQueryClient } from '@tanstack/react-query';
 import { PdfQueueModal } from '../../components/modals/PdfQueueModal';
+import { ConfirmarPagamentoModal } from '../../components/modals/ConfirmarPagamentoModal';
+import { EstornarPagamentoModal } from '../../components/modals/EstornarPagamentoModal';
 import { usePdfDownload } from '../../hooks/usePdfDownload';
 
 const formatCurrency = (value: number) => {
@@ -11,16 +13,6 @@ const formatCurrency = (value: number) => {
         currency: 'BRL'
     }).format(value);
 };
-
-const MEIOS_PAGAMENTO: { value: MeioPagamento; label: string }[] = [
-    { value: 'DINHEIRO', label: 'DINHEIRO' },
-    { value: 'PIX', label: 'PIX' },
-    { value: 'CARTAO_CREDITO', label: 'CRÉDITO' },
-    { value: 'CARTAO_DEBITO', label: 'DÉBITO' },
-    { value: 'BOLETO', label: 'BOLETO' },
-    { value: 'TRANSFERENCIA', label: 'TED/DOC' },
-    { value: 'CHEQUE', label: 'CHEQUE' },
-];
 
 const NOMES_MESES = [
     'JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO',
@@ -38,8 +30,7 @@ const ContasPagarPage = () => {
     const [anoSelecionado, setAnoSelecionado] = useState(now.getFullYear());
     const [resumo, setResumo] = useState<ResumoFinanceiro | null>(null);
     const [modalPagar, setModalPagar] = useState<ContaPagar | null>(null);
-    const [meioPagamento, setMeioPagamento] = useState<MeioPagamento>('PIX');
-    const [processando, setProcessando] = useState(false);
+    const [modalEstornar, setModalEstornar] = useState<ContaPagar | null>(null);
     const { pdfState, startPdfDownload, retryPdfDownload, closePdfModal } = usePdfDownload(financeiroService.getApiBaseUrl());
 
     // Carregar todas as contas (sem filtro de status no backend para poder filtrar localmente)
@@ -119,31 +110,26 @@ const ContasPagarPage = () => {
         return { totalPendente, totalPago, totalVencido, totalMes };
     }, [contas, mesSelecionado, anoSelecionado]);
 
-    const handlePagar = async () => {
-        if (!modalPagar) return;
+    const invalidarCachesFinanceiros = () => {
+        queryClient.invalidateQueries({ queryKey: ['relatorio'] });
+        queryClient.invalidateQueries({ queryKey: ['despesas'] });
+        queryClient.invalidateQueries({ queryKey: ['financeiro'] });
+        queryClient.invalidateQueries({ queryKey: ['faturas'] });
+        queryClient.invalidateQueries({ queryKey: ['cartao-limite'] });
+    };
 
-        try {
-            setProcessando(true);
-            await financeiroService.pagarConta(modalPagar.id, {
-                meioPagamento,
-                dataPagamento: new Date().toISOString().split('T')[0]
-            });
+    const handlePagamentoConcluido = () => {
+        invalidarCachesFinanceiros();
+        setModalPagar(null);
+        loadContas();
+        loadResumo();
+    };
 
-            // Invalidate Report Cache to update Cash Flow immediately
-            queryClient.invalidateQueries({ queryKey: ['relatorio'] });
-            queryClient.invalidateQueries({ queryKey: ['despesas'] });
-            queryClient.invalidateQueries({ queryKey: ['financeiro'] });
-            queryClient.invalidateQueries({ queryKey: ['faturas'] });
-
-            setModalPagar(null);
-            loadContas();
-            loadResumo();
-        } catch (err) {
-            console.error('Erro ao pagar conta:', err);
-            alert('Erro ao registrar pagamento');
-        } finally {
-            setProcessando(false);
-        }
+    const handleEstornoConcluido = () => {
+        invalidarCachesFinanceiros();
+        setModalEstornar(null);
+        loadContas();
+        loadResumo();
     };
 
     const isVencido = (dataVencimento: string) => {
@@ -366,9 +352,18 @@ const ContasPagarPage = () => {
                                                 {conta.status === 'PENDENTE' && (
                                                     <button
                                                         onClick={() => setModalPagar(conta)}
-                                                        className="px-4 py-2 bg-cyber-gold/10 border border-cyber-gold/50 text-cyber-gold font-mono text-xs font-bold hover:bg-cyber-gold hover:text-black transition-all"
+                                                        className="px-4 py-2 bg-cyber-gold/10 border border-cyber-gold/50 text-cyber-gold font-mono text-xs font-bold hover:bg-cyber-gold hover:text-black transition-all cursor-pointer"
                                                     >
                                                         PAGAR
+                                                    </button>
+                                                )}
+                                                {conta.status === 'PAGO' && (
+                                                    <button
+                                                        onClick={() => setModalEstornar(conta)}
+                                                        className="px-3 py-1.5 bg-amber-500/10 border border-amber-500/40 text-amber-300 font-mono text-xs font-bold hover:bg-amber-500/25 transition-all cursor-pointer"
+                                                        title="Registrar estorno auditável"
+                                                    >
+                                                        ESTORNAR
                                                     </button>
                                                 )}
                                             </td>
@@ -392,52 +387,26 @@ const ContasPagarPage = () => {
                     </div>
                 )}
 
-                {/* Modal de Pagamento */}
+                {/* Modal de Confirmação Segura de Pagamento (4 níveis de alerta) */}
                 {modalPagar && (
-                    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 animate-fadeIn" onClick={() => setModalPagar(null)}>
-                        <div className="hud-card top-brackets bottom-brackets p-8 min-w-[400px] max-w-[90%]" onClick={(e) => e.stopPropagation()}>
-                            <div className="static-overlay"></div>
+                    <ConfirmarPagamentoModal
+                        conta={modalPagar}
+                        onClose={() => setModalPagar(null)}
+                        onSuccess={handlePagamentoConcluido}
+                        onSolicitarEstorno={(contaPaga) => {
+                            setModalPagar(null);
+                            setModalEstornar(contaPaga);
+                        }}
+                    />
+                )}
 
-                            <div className="flex items-center gap-3 mb-6">
-                                <span className="w-1 h-8 bg-cyber-gold"></span>
-                                <h2 className="text-xl font-black text-cyber-gold tracking-wider">REGISTRAR PAGAMENTO</h2>
-                            </div>
-
-                            <p className="text-cyber-text text-lg mb-2">{modalPagar.descricao}</p>
-                            <p className="text-4xl font-black text-cyber-error font-mono mb-6">
-                                {formatCurrency(modalPagar.valor)}
-                            </p>
-
-                            <div className="mb-6">
-                                <span className="hud-label mb-2 block">MEIO DE PAGAMENTO</span>
-                                <select
-                                    value={meioPagamento}
-                                    onChange={(e) => setMeioPagamento(e.target.value as MeioPagamento)}
-                                    className="w-full bg-black/80 border border-cyber-gold/50 text-cyber-gold px-4 py-3 font-mono focus:outline-none focus:border-cyber-gold transition-colors"
-                                >
-                                    {MEIOS_PAGAMENTO.map(mp => (
-                                        <option key={mp.value} value={mp.value}>{mp.label}</option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            <div className="flex gap-4">
-                                <button
-                                    onClick={() => setModalPagar(null)}
-                                    className="flex-1 px-6 py-3 bg-black/50 border border-cyber-gold/30 text-cyber-gold/60 font-mono font-bold hover:border-cyber-gold/60 transition-colors"
-                                >
-                                    CANCELAR
-                                </button>
-                                <button
-                                    onClick={handlePagar}
-                                    disabled={processando}
-                                    className="flex-1 hud-button disabled:opacity-50"
-                                >
-                                    {processando ? 'PROCESSANDO...' : 'CONFIRMAR'}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+                {/* Modal de Estorno Financeiro Auditável */}
+                {modalEstornar && (
+                    <EstornarPagamentoModal
+                        conta={modalEstornar}
+                        onClose={() => setModalEstornar(null)}
+                        onSuccess={handleEstornoConcluido}
+                    />
                 )}
             </div>
 
