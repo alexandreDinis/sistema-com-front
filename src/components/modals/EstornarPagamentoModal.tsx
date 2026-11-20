@@ -19,7 +19,6 @@ export const EstornarPagamentoModal: React.FC<EstornarPagamentoModalProps> = ({
     onSuccess,
 }) => {
     const [motivo, setMotivo] = useState('');
-    const [reabrirConta, setReabrirConta] = useState(true);
     const [processando, setProcessando] = useState(false);
     const [erro, setErro] = useState<string | null>(null);
     const inFlightRef = useRef(false);
@@ -37,7 +36,7 @@ export const EstornarPagamentoModal: React.FC<EstornarPagamentoModalProps> = ({
         try {
             const estorno = await financeiroService.estornarContaPagar(conta.id, {
                 motivo: motivo.trim(),
-                reabrirConta,
+                reabrirConta: true,
             });
             onSuccess(estorno);
         } catch (err: unknown) {
@@ -111,9 +110,10 @@ export const EstornarPagamentoModal: React.FC<EstornarPagamentoModalProps> = ({
                 <div className="bg-amber-500/10 border border-amber-500/35 rounded-lg p-3 mb-4 text-xs text-amber-200 flex items-start gap-2">
                     <ShieldAlert size={16} className="shrink-0 mt-0.5 text-amber-400" />
                     <span>
-                        O pagamento original <strong>não será apagado</strong>. Ele ficará preservado no histórico
-                        com status <strong>CANCELADO</strong>, o efeito no fluxo de caixa será revertido e seu
-                        usuário, data/hora e justificativa ficarão gravados na trilha de auditoria.
+                        Use o estorno <strong>apenas para corrigir um pagamento registrado por engano</strong>.
+                        O pagamento original <strong>não será apagado</strong> (ficará preservado como{' '}
+                        <strong>CANCELADO</strong> na auditoria), o valor sairá do fluxo de caixa pago e a
+                        conta/fatura voltará automaticamente para <strong>PENDENTE</strong>.
                     </span>
                 </div>
 
@@ -144,20 +144,6 @@ export const EstornarPagamentoModal: React.FC<EstornarPagamentoModalProps> = ({
                             <span className="text-gray-500">{motivo.length}/500</span>
                         </div>
                     </div>
-
-                    <label className="flex items-start gap-2.5 p-3 rounded-lg bg-white/[0.03] border border-white/10 cursor-pointer select-none">
-                        <input
-                            type="checkbox"
-                            checked={reabrirConta}
-                            onChange={(e) => setReabrirConta(e.target.checked)}
-                            disabled={processando}
-                            className="mt-0.5 accent-amber-400 w-4 h-4 cursor-pointer"
-                        />
-                        <span className="text-xs text-gray-200 leading-relaxed">
-                            <strong>Reabrir conta como PENDENTE</strong> (recomendado: cria uma nova conta em aberto
-                            vinculada ao estorno para pagamento na data correta).
-                        </span>
-                    </label>
 
                     {erro && (
                         <div className="border border-cyber-error/60 bg-cyber-error/10 rounded-lg p-3 text-cyber-error text-xs flex items-start gap-2">
