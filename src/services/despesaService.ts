@@ -15,6 +15,11 @@ export const despesaService = {
         return response.data;
     },
 
+    atualizar: async (id: number, despesa: DespesaRequest): Promise<Despesa> => {
+        const response = await api.put<Despesa>(`despesas/${id}`, despesa);
+        return response.data;
+    },
+
     excluir: async (id: number): Promise<void> => {
         await api.delete(`despesas/${id}`);
     }
