@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { osService } from '../../services/osService';
 import { prestadorService } from '../../services/prestadorService';
 import { userService } from '../../services/userService';
-import { ArrowLeft, Car, Wrench, CheckCircle, Plus, Ban, History, FileDown, Trash2, User as UserIcon, Edit2, Save, ChevronDown, Image } from 'lucide-react';
+import { ArrowLeft, Car, Wrench, CheckCircle, Plus, Ban, History, FileDown, Trash2, User as UserIcon, Edit2, Save, ChevronDown, Image, EyeOff } from 'lucide-react';
 import { VehicleHistoryModal } from '../../components/modals/VehicleHistoryModal';
 import { DuplicatePlateModal } from '../../components/modals/DuplicatePlateModal';
 import { ActionModal } from '../../components/modals/ActionModal';
@@ -43,6 +43,7 @@ export const OSDetailsPage: React.FC = () => {
 
     const [isFinalizeModalOpen, setIsFinalizeModalOpen] = useState(false);
     const [showPdfMenu, setShowPdfMenu] = useState(false);
+    const [ocultarTotalPdf, setOcultarTotalPdf] = useState(false);
     const [discountForm, setDiscountForm] = useState<{
         tipoDesconto: 'PERCENTUAL' | 'VALOR_FIXO' | null;
         valorDesconto: string;
@@ -519,10 +520,25 @@ export const OSDetailsPage: React.FC = () => {
                             <FileDown className="w-4 h-4" /> BAIXAR PDF <ChevronDown className="w-3 h-3" />
                         </button>
                         {showPdfMenu && (
-                            <div className="absolute top-full mt-2 left-0 sm:left-auto sm:right-0 bg-gray-900 border border-gray-700 rounded shadow-xl z-50 w-max min-w-[240px] overflow-hidden">
+                            <div className="absolute top-full mt-2 left-0 sm:left-auto sm:right-0 bg-gray-900 border border-gray-700 rounded shadow-xl z-50 w-max min-w-[260px] overflow-hidden">
+                                <label className="w-full px-5 py-3.5 sm:py-3 bg-gray-950/70 hover:bg-gray-800/80 transition-colors flex items-center justify-between gap-3 border-b border-gray-700/80 cursor-pointer select-none">
+                                    <span className="flex items-center gap-2.5 text-gray-200 font-oxanium text-sm">
+                                        <EyeOff className="w-4 h-4 text-cyber-gold shrink-0" />
+                                        Esconder valor total?
+                                    </span>
+                                    <input
+                                        type="checkbox"
+                                        checked={ocultarTotalPdf}
+                                        onChange={(e) => setOcultarTotalPdf(e.target.checked)}
+                                        className="w-4 h-4 accent-amber-500 rounded cursor-pointer"
+                                    />
+                                </label>
                                 <button
                                     onClick={() => {
-                                        startPdfDownload(osService.getOSPdfPath(osId), `os-${osId}.pdf`);
+                                        startPdfDownload(
+                                            osService.getOSPdfPath(osId, { ocultarTotal: ocultarTotalPdf }),
+                                            osService.getOSPdfFilename(osId, os.data)
+                                        );
                                         setShowPdfMenu(false);
                                     }}
                                     className="w-full text-left px-5 py-4 sm:py-3 text-gray-200 hover:bg-gray-800 hover:text-white transition-colors font-oxanium text-base sm:text-sm flex items-center gap-3 border-b border-gray-800"
@@ -532,8 +548,8 @@ export const OSDetailsPage: React.FC = () => {
                                 <button
                                     onClick={() => {
                                         startPdfDownload(
-                                            osService.getOSPdfPath(osId) + '?imagens=true',
-                                            `os-${osId}-fotos.pdf`
+                                            osService.getOSPdfPath(osId, { imagens: true, ocultarTotal: ocultarTotalPdf }),
+                                            osService.getOSPdfFilename(osId, os.data)
                                         ).catch((err: any) => {
                                             // Tratar erro de limite de imagens excedido
                                             if (err?.response?.data?.error === 'TooManyImages') {

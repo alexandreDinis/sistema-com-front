@@ -183,6 +183,24 @@ export const osService = {
     // --- PDF ---
     // Path builders for PDF downloads (used by usePdfDownload hook)
     getRelatorioPdfPath: (ano: number, mes: number) => `relatorios/${ano}/${mes}/pdf`,
-    getOSPdfPath: (osId: number) => `ordens-servico/${osId}/pdf`,
+    getOSPdfPath: (osId: number, options?: { imagens?: boolean; ocultarTotal?: boolean }) => {
+        const params = new URLSearchParams();
+        if (options?.imagens) params.set('imagens', 'true');
+        if (options?.ocultarTotal) params.set('ocultarTotal', 'true');
+        const qs = params.toString();
+        return qs ? `ordens-servico/${osId}/pdf?${qs}` : `ordens-servico/${osId}/pdf`;
+    },
+    getOSPdfFilename: (osId: number, dataOs?: string) => {
+        const match = dataOs?.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (match) {
+            const [, yyyy, mm, dd] = match;
+            return `${osId}-martelinho-de-ouro-${dd}-${mm}-${yyyy.slice(-2)}.pdf`;
+        }
+        const hoje = new Date();
+        const dd = String(hoje.getDate()).padStart(2, '0');
+        const mm = String(hoje.getMonth() + 1).padStart(2, '0');
+        const aa = String(hoje.getFullYear()).slice(-2);
+        return `${osId}-martelinho-de-ouro-${dd}-${mm}-${aa}.pdf`;
+    },
     getApiBaseUrl: () => API_BASE_URL
 };
