@@ -5,7 +5,10 @@ import type {
     ResumoFinanceiro,
     FluxoCaixa,
     PagarContaRequest,
-    ReceberContaRequest
+    ReceberContaRequest,
+    EstornarContaRequest,
+    EstornoContaPagar,
+    PageResponse,
 } from '../types';
 
 export const financeiroService = {
@@ -21,6 +24,49 @@ export const financeiroService = {
 
     pagarConta: async (id: number, request: PagarContaRequest): Promise<ContaPagar> => {
         const response = await api.post(`/financeiro/contas-pagar/${id}/pagar`, request);
+        return response.data;
+    },
+
+    estornarContaPagar: async (id: number, request: EstornarContaRequest): Promise<EstornoContaPagar> => {
+        const response = await api.post(`/financeiro/contas-pagar/${id}/estornar`, request);
+        return response.data;
+    },
+
+    listarEstornos: async (): Promise<EstornoContaPagar[]> => {
+        const response = await api.get('/financeiro/estornos');
+        return response.data;
+    },
+
+    listarContasPagarPaginado: async (params: {
+        mes?: number;
+        ano?: number;
+        status?: string;
+        tipo?: string;
+        busca?: string;
+        page?: number;
+        size?: number;
+    }): Promise<PageResponse<ContaPagar>> => {
+        const response = await api.get('/financeiro/contas-pagar/paginado', { params });
+        return response.data;
+    },
+
+    listarFaturasPaginado: async (page = 0, size = 12): Promise<PageResponse<ContaPagar>> => {
+        const response = await api.get('/financeiro/faturas/paginado', { params: { page, size } });
+        return response.data;
+    },
+
+    listarEstornosPaginado: async (page = 0, size = 15): Promise<PageResponse<EstornoContaPagar>> => {
+        const response = await api.get('/financeiro/estornos/paginado', { params: { page, size } });
+        return response.data;
+    },
+
+    listarContasReceberPaginado: async (params: {
+        status?: string;
+        busca?: string;
+        page?: number;
+        size?: number;
+    }): Promise<PageResponse<ContaReceber>> => {
+        const response = await api.get('/financeiro/contas-receber/paginado', { params });
         return response.data;
     },
 
