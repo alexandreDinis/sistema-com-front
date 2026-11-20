@@ -315,6 +315,7 @@ export interface PecaOS {
     nomePeca: string;
     valorCobrado: number;
     descricao?: string;
+    tipoExecucao?: TipoExecucao;
 }
 
 export interface VeiculoImagem {

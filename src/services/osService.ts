@@ -26,6 +26,23 @@ export const osService = {
         return response.data;
     },
 
+    listClientesPaginado: async (
+        page: number,
+        size: number,
+        filtros?: ClienteFiltros
+    ): Promise<PageResponse<Cliente>> => {
+        const params = new URLSearchParams();
+        params.append('page', String(page));
+        params.append('size', String(size));
+        if (filtros) {
+            Object.entries(filtros).forEach(([key, value]) => {
+                if (value) params.append(key, String(value));
+            });
+        }
+        const response = await api.get<PageResponse<Cliente>>(`/clientes/paginado?${params.toString()}`);
+        return response.data;
+    },
+
     updateCliente: async ({ id, data }: { id: number; data: ClienteRequest }): Promise<Cliente> => {
         const response = await api.put<Cliente>(`/clientes/${id}`, data);
         return response.data;
@@ -77,6 +94,11 @@ export const osService = {
             if (filters.atrasado) params.append('atrasado', 'true');
         }
         const response = await api.get<PageResponse<OrdemServico>>(`/ordens-servico/grid`, { params });
+        return response.data;
+    },
+
+    getOSContadores: async (): Promise<{ emAndamento: number; atrasadas: number }> => {
+        const response = await api.get<{ emAndamento: number; atrasadas: number }>('/ordens-servico/contadores');
         return response.data;
     },
 
