@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { Calendar, CheckCircle, CreditCard } from 'lucide-react';
+import { Calendar, CheckCircle, ChevronRight, CreditCard, Home } from 'lucide-react';
 import { financeiroService } from '../../services/financeiroService';
 import { ConfirmarPagamentoModal } from '../../components/modals/ConfirmarPagamentoModal';
 import { formatarDataLocal } from '../../utils/faturaUtils';
@@ -19,7 +20,9 @@ const FaturasPage = () => {
         try {
             setLoading(true);
             const data = await financeiroService.listarContasPagar('PENDENTE');
-            const faturasCartao = data.filter((c) => c.tipo === 'FATURA_CARTAO');
+            const faturasCartao = data
+                .filter((c) => c.tipo === 'FATURA_CARTAO')
+                .sort((a, b) => a.dataVencimento.localeCompare(b.dataVencimento));
             setFaturas(faturasCartao);
         } catch (err) {
             console.error('Erro ao carregar faturas:', err);
@@ -45,68 +48,81 @@ const FaturasPage = () => {
     if (loading) {
         return (
             <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4">
-                <div className="w-16 h-16 border-4 border-green-400/30 border-t-green-400 rounded-full animate-spin"></div>
-                <p className="text-green-400 font-mono text-sm tracking-widest animate-pulse">CARREGANDO FATURAS...</p>
+                <div className="w-12 h-12 border-4 border-cyber-gold/30 border-t-cyber-gold rounded-full animate-spin" />
+                <p className="text-gray-400 text-sm animate-pulse">Carregando faturas...</p>
             </div>
         );
     }
 
     return (
-        <div className="min-h-[calc(100vh-64px)] py-6 space-y-6 animate-fadeIn">
-            <header className="flex items-center justify-between flex-wrap gap-4">
+        <div className="max-w-[1400px] mx-auto px-4 py-6 sm:py-8">
+            <header className="mb-6">
+                <nav className="flex items-center gap-2 text-xs text-gray-400 mb-2">
+                    <Link to="/" className="hover:text-cyber-gold transition-colors flex items-center gap-1">
+                        <Home size={13} />
+                        Início
+                    </Link>
+                    <ChevronRight size={13} className="opacity-40" />
+                    <Link to="/financeiro" className="hover:text-cyber-gold transition-colors">
+                        Financeiro
+                    </Link>
+                    <ChevronRight size={13} className="opacity-40" />
+                    <span className="text-cyber-gold font-medium">Faturas de Cartão</span>
+                </nav>
+
                 <div className="flex items-center gap-3">
-                    <span className="w-2 h-10 bg-cyan-500"></span>
+                    <span className="w-1.5 h-8 bg-cyber-gold rounded-full" />
                     <div>
-                        <h1 className="text-2xl font-black italic text-cyber-gold tracking-widest uppercase">
+                        <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
                             Faturas de Cartão
                         </h1>
-                        <p className="text-cyber-gold/50 font-mono text-xs tracking-[0.3em]">
-                            // CONTAS A PAGAR CONSOLIDADAS
+                        <p className="text-xs sm:text-sm text-gray-400 mt-0.5">
+                            Faturas consolidadas em aberto por ciclo de fechamento e vencimento.
                         </p>
                     </div>
                 </div>
             </header>
 
-            <div className="grid gap-4">
-                {faturas.length === 0 ? (
-                    <div className="p-12 hud-card text-center text-gray-500">
-                        Nenhuma fatura pendente encontrada.
-                    </div>
-                ) : (
-                    faturas.map((fatura) => (
+            {faturas.length === 0 ? (
+                <div className="bg-[#0f1117] border border-cyber-gold/20 rounded-xl p-12 text-center text-gray-500 text-sm">
+                    Nenhuma fatura pendente encontrada.
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                    {faturas.map((fatura) => (
                         <div
                             key={fatura.id}
-                            className="hud-card p-6 flex flex-col md:flex-row items-center justify-between gap-6 group hover:border-cyan-500/30 transition-all"
+                            className="bg-[#0f1117] border border-cyber-gold/20 hover:border-cyber-gold/45 rounded-xl p-5 flex flex-col justify-between gap-4 transition-colors shadow-lg"
                         >
-                            <div className="flex items-center gap-4">
-                                <div className="p-4 rounded-full bg-cyan-500/10 text-cyan-400">
-                                    <CreditCard size={24} />
+                            <div className="flex items-start gap-3">
+                                <div className="p-2.5 rounded-xl bg-purple-500/15 text-purple-300 shrink-0">
+                                    <CreditCard size={20} />
                                 </div>
-                                <div>
-                                    <h3 className="font-bold text-lg text-white group-hover:text-cyan-400 transition-colors">
-                                        {fatura.descricao}
-                                    </h3>
-                                    <div className="flex items-center gap-4 text-sm text-gray-400 mt-1 flex-wrap">
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex items-start justify-between gap-2">
+                                        <h3 className="font-bold text-base text-white leading-snug">
+                                            {fatura.descricao}
+                                        </h3>
+                                        <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 shrink-0">
+                                            PENDENTE
+                                        </span>
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-3 text-xs text-gray-400 mt-2 font-mono">
                                         <span className="flex items-center gap-1">
-                                            <Calendar size={14} />
+                                            <Calendar size={12} className="text-cyber-gold" />
                                             Vence: {formatarDataLocal(fatura.dataVencimento)}
                                         </span>
                                         {fatura.dataCompetencia && (
-                                            <span className="text-xs text-gray-500 font-mono">
-                                                Fecha: {formatarDataLocal(fatura.dataCompetencia)}
-                                            </span>
+                                            <span>Fecha: {formatarDataLocal(fatura.dataCompetencia)}</span>
                                         )}
-                                        <span className="font-mono text-xs px-2 py-0.5 rounded bg-yellow-500/10 text-yellow-500">
-                                            PENDENTE
-                                        </span>
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-6">
-                                <div className="text-right">
-                                    <span className="text-xs text-gray-500 block font-mono">VALOR TOTAL</span>
-                                    <span className="text-2xl font-black text-white tracking-tight">
+                            <div className="flex items-center justify-between pt-3 border-t border-white/10">
+                                <div>
+                                    <span className="text-[10px] uppercase text-gray-500 block">Valor Total</span>
+                                    <span className="text-xl font-extrabold text-cyber-gold tabular-nums">
                                         {formatCurrency(fatura.valor)}
                                     </span>
                                 </div>
@@ -114,16 +130,16 @@ const FaturasPage = () => {
                                 <button
                                     type="button"
                                     onClick={() => setFaturaSelecionada(fatura)}
-                                    className="hud-btn bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 border-cyan-500/50 flex items-center gap-2 cursor-pointer"
+                                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-cyber-gold text-black text-xs font-extrabold hover:brightness-110 transition-all cursor-pointer"
                                 >
-                                    <CheckCircle size={18} />
-                                    REGISTRAR PAGAMENTO
+                                    <CheckCircle size={14} />
+                                    Registrar Pagamento
                                 </button>
                             </div>
                         </div>
-                    ))
-                )}
-            </div>
+                    ))}
+                </div>
+            )}
 
             {faturaSelecionada && (
                 <ConfirmarPagamentoModal
