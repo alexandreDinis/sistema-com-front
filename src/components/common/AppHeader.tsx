@@ -1,164 +1,150 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ChevronDown, Wrench, Settings, LayoutDashboard, FileText, Edit, DollarSign, BarChart2 } from 'lucide-react';
+import { ChevronDown, Wrench, Settings, LayoutDashboard, DollarSign, BarChart2 } from 'lucide-react';
 import { usePermission } from '../../hooks/usePermission';
 import { Feature } from '../../types/features';
 import { UserMenu } from './UserMenu';
 import logo from '../../assets/log.png';
 
 export const AppHeader: React.FC = () => {
-
     const location = useLocation();
     const { hasFeature } = usePermission();
 
     const isActive = (path: string) => location.pathname === path;
-    const isSectionActive = (paths: string[]) => paths.some(path => location.pathname.startsWith(path));
 
-    // Definição dos Grupos de Navegação com Features - Estrutura ERP
+    const isSectionActive = (paths: string[]) =>
+        paths.some((path) => {
+            if (location.pathname === path) return true;
+            if (path === '/settings' || path === '/financeiro' || path === '/relatorio') {
+                return false;
+            }
+            return location.pathname.startsWith(`${path}/`);
+        });
+
     const allNavGroups = [
-        // OPERAÇÃO - mantém igual
         {
-            label: 'OPERAÇÃO',
+            label: 'Operação',
             icon: Wrench,
-            requiredFeature: [Feature.CLIENTE_READ, Feature.OS_READ, Feature.PRODUTO_READ],
             items: [
-                { label: 'CLIENTES', path: '/clientes', feature: Feature.CLIENTE_READ },
-                { label: 'ORDENS DE SERVIÇO', path: '/os', feature: Feature.OS_READ },
-                { label: 'CATÁLOGO', path: '/catalogo', feature: Feature.PRODUTO_READ },
-            ]
+                { label: 'Ordens de Serviço', path: '/os', feature: Feature.OS_READ },
+                { label: 'Clientes', path: '/clientes', feature: Feature.CLIENTE_READ },
+                { label: 'Catálogo', path: '/catalogo', feature: Feature.PRODUTO_READ },
+            ],
         },
-        // FINANCEIRO - Dashboard apenas
         {
-            label: 'FINANCEIRO',
+            label: 'Financeiro',
             icon: LayoutDashboard,
-            requiredFeature: [Feature.RELATORIO_FINANCEIRO_VIEW],
             items: [
-                { label: 'DASHBOARD', path: '/financeiro', feature: Feature.RELATORIO_FINANCEIRO_VIEW },
-            ]
+                { label: 'Dashboard', path: '/financeiro', feature: Feature.RELATORIO_FINANCEIRO_VIEW },
+                { label: 'Gestão de Despesas', path: '/despesa', feature: Feature.RELATORIO_FINANCEIRO_VIEW },
+                { label: 'Contas a Receber', path: '/financeiro/contas-receber', feature: Feature.RELATORIO_FINANCEIRO_VIEW },
+                { label: 'Contas a Pagar', path: '/financeiro/contas-pagar', feature: Feature.RELATORIO_FINANCEIRO_VIEW },
+                { label: 'Cartões Corporativos', path: '/financeiro/cartoes', feature: Feature.RELATORIO_FINANCEIRO_VIEW },
+                { label: 'Faturas de Cartão', path: '/financeiro/faturas', feature: Feature.RELATORIO_FINANCEIRO_VIEW },
+            ],
         },
-        // CONTAS - Fluxo de Recebíveis/Pagáveis
         {
-            label: 'CONTAS',
-            icon: FileText,
-            requiredFeature: [Feature.RELATORIO_FINANCEIRO_VIEW],
-            items: [
-                { label: 'CONTAS A RECEBER', path: '/financeiro/contas-receber', feature: Feature.RELATORIO_FINANCEIRO_VIEW },
-                { label: 'CONTAS A PAGAR', path: '/financeiro/contas-pagar', feature: Feature.RELATORIO_FINANCEIRO_VIEW },
-                { label: 'CARTÕES CORPORATIVOS', path: '/financeiro/cartoes', feature: Feature.RELATORIO_FINANCEIRO_VIEW },
-                { label: 'FATURAS DE CARTÃO', path: '/financeiro/faturas', feature: Feature.RELATORIO_FINANCEIRO_VIEW },
-            ]
-        },
-        // LANÇAMENTOS - Entrada de dados
-        {
-            label: 'LANÇAMENTOS',
-            icon: Edit,
-            requiredFeature: [Feature.RELATORIO_FINANCEIRO_VIEW],
-            items: [
-                { label: 'DESPESAS', path: '/despesa', feature: Feature.RELATORIO_FINANCEIRO_VIEW },
-                { label: 'FATURAMENTO MANUAL', path: '/faturamento', feature: Feature.RELATORIO_FINANCEIRO_VIEW },
-            ]
-        },
-        // COMISSÕES - Gestão
-        {
-            label: 'COMISSÕES',
+            label: 'Comissões',
             icon: DollarSign,
-            requiredFeature: [Feature.RELATORIO_COMISSAO_VIEW, Feature.ADMIN_CONFIG],
             items: [
-                { label: 'MINHAS COMISSÕES', path: '/minha-comissao', feature: Feature.RELATORIO_COMISSAO_VIEW },
-                { label: 'GESTÃO DE PAGAMENTOS', path: '/settings/comissao/pagamentos', feature: Feature.ADMIN_CONFIG },
-                { label: 'REGRAS DE COMISSÃO', path: '/settings/comissao', feature: Feature.ADMIN_CONFIG },
-            ]
+                { label: 'Minhas Comissões', path: '/minha-comissao', feature: Feature.RELATORIO_COMISSAO_VIEW },
+                { label: 'Gestão de Pagamentos', path: '/settings/comissao/pagamentos', feature: Feature.ADMIN_CONFIG },
+                { label: 'Regras de Comissão', path: '/settings/comissao', feature: Feature.ADMIN_CONFIG },
+            ],
         },
-        // RELATÓRIOS - Análise
         {
-            label: 'RELATÓRIOS',
+            label: 'Relatórios',
             icon: BarChart2,
-            requiredFeature: [Feature.RELATORIO_FINANCEIRO_VIEW],
             items: [
-                { label: 'HUB DE RELATÓRIOS', path: '/relatorio', feature: Feature.RELATORIO_FINANCEIRO_VIEW },
-                { label: 'DRE MENSAL', path: '/relatorio/financeiro', feature: Feature.RELATORIO_FINANCEIRO_VIEW },
-                { label: 'DRE / VISÃO ANUAL', path: '/relatorio/anual', feature: Feature.RELATORIO_FINANCEIRO_VIEW },
-                { label: 'RANKING CLIENTES', path: '/relatorio/ranking', feature: Feature.RELATORIO_FINANCEIRO_VIEW },
-            ]
+                { label: 'Hub de Relatórios', path: '/relatorio', feature: Feature.RELATORIO_FINANCEIRO_VIEW },
+                { label: 'DRE Mensal', path: '/relatorio/financeiro', feature: Feature.RELATORIO_FINANCEIRO_VIEW },
+                { label: 'DRE / Visão Anual', path: '/relatorio/anual', feature: Feature.RELATORIO_FINANCEIRO_VIEW },
+                { label: 'Ranking Clientes', path: '/relatorio/ranking', feature: Feature.RELATORIO_FINANCEIRO_VIEW },
+            ],
         },
-        // CONFIGURAÇÕES
         {
-            label: 'CONFIGURAÇÕES',
+            label: 'Configurações',
             icon: Settings,
-            requiredFeature: [Feature.ADMIN_CONFIG, Feature.ADMIN_USERS_READ],
+            alignRight: true,
             items: [
-                { label: 'ADMINISTRAÇÃO', path: '/settings', feature: Feature.ADMIN_CONFIG },
-                { label: 'TRIBUTAÇÃO', path: '/settings/tributacao', feature: Feature.ADMIN_CONFIG },
-                { label: 'PRESTADORES', path: '/settings/prestadores', feature: Feature.ADMIN_CONFIG },
-            ]
-        }
+                { label: 'Administração', path: '/settings', feature: Feature.ADMIN_CONFIG },
+                { label: 'Tributação', path: '/settings/tributacao', feature: Feature.ADMIN_CONFIG },
+                { label: 'Prestadores', path: '/settings/prestadores', feature: Feature.ADMIN_CONFIG },
+            ],
+        },
     ];
 
-    // Filtrar grupos e itens baseados nas permissões do usuário
-    const navGroups = allNavGroups.map(group => ({
-        ...group,
-        items: group.items.filter(item => hasFeature(item.feature))
-    })).filter(group => group.items.length > 0);
+    const navGroups = allNavGroups
+        .map((group) => ({
+            ...group,
+            items: group.items.filter((item) => hasFeature(item.feature)),
+        }))
+        .filter((group) => group.items.length > 0);
 
     return (
-        <header className="bg-black/90 border-b border-cyber-gold/40 shadow-[0_0_20px_rgba(212,175,55,0.1)] sticky top-0 z-50">
-            <div className="absolute inset-0 pointer-events-none opacity-20">
-                <div className="absolute top-0 left-0 w-full h-px bg-cyber-gold animate-[scanline_2s_infinite]"></div>
-            </div>
-
-            <div className="container mx-auto px-4 py-2">
-                <div className="flex justify-between items-center">
-                    <Link to="/" className="flex items-center gap-4 group transition-all">
-                        <div className="relative">
-                            <div className="w-14 h-14 rounded-full border-2 border-cyber-gold/50 flex items-center justify-center p-1 group-hover:shadow-[0_0_25px_rgba(212,175,55,0.4)] transition-shadow">
-                                <img src={logo} alt="OROBOROS Logo" className="w-full h-full object-cover scale-150 brightness-125 group-hover:scale-175 transition-transform" />
-                            </div>
-                        </div>
-                        <div className="flex flex-col">
-                            <div className="flex items-center gap-2">
-                                <span className="text-2xl font-black text-cyber-gold tracking-tighter italic italic-shadow glitch">MARTELINHO DIGITAL</span>
-                                <div className="px-1.5 py-0.5 bg-cyber-gold/10 border border-cyber-gold/30 text-[8px] text-cyber-gold/60 font-mono flex items-center gap-1">
-                                    <span className="w-1 h-1 bg-cyber-gold rounded-full animate-pulse"></span>
-                                    ONLINE
-                                </div>
-                            </div>
-                            <span className="text-[10px] text-cyber-gold/40 font-mono uppercase tracking-[0.4em]">by Power Oroboros Technology</span>
-                        </div>
-                    </Link>
-
-                    {/* Mobile: show UserMenu directly instead of hamburger */}
-                    <div className="md:hidden">
-                        <UserMenu />
+        <header className="bg-[#0d1019]/90 backdrop-blur-md border-b border-white/10 sticky top-0 z-50">
+            <div className="container mx-auto px-4 h-16 flex items-center justify-between gap-4">
+                {/* Brand */}
+                <Link to="/" className="flex items-center gap-3 group shrink-0">
+                    <div className="w-10 h-10 rounded-xl border border-cyber-gold/40 bg-cyber-gold/10 overflow-hidden flex items-center justify-center group-hover:border-cyber-gold transition-colors">
+                        <img
+                            src={logo}
+                            alt="Martelinho Digital"
+                            className="w-full h-full object-cover scale-125 brightness-110"
+                        />
                     </div>
+                    <span className="text-sm sm:text-base font-orbitron font-bold tracking-wider text-white">
+                        MARTELINHO <span className="text-cyber-gold">DIGITAL</span>
+                    </span>
+                </Link>
 
-                    {/* Desktop Nav */}
-                    <nav className="hidden md:flex gap-6">
-                        {hasFeature(Feature.DASHBOARD_VIEW) && (
-                            <Link
-                                to="/"
-                                className={`px-3 py-2 text-[10px] font-black tracking-widest uppercase transition-all flex items-center gap-2 relative group ${isActive('/') ? 'text-cyber-gold' : 'text-cyber-gold/60 hover:text-cyber-gold'}`}
-                            >
-                                PAINEL
-                                {isActive('/') && <div className="absolute -bottom-3 left-0 right-0 h-[2px] bg-cyber-gold shadow-[0_0_10px_var(--color-cyber-gold)]"></div>}
-                            </Link>
-                        )}
+                {/* Desktop Navigation */}
+                <nav className="hidden lg:flex items-center gap-1">
+                    {hasFeature(Feature.DASHBOARD_VIEW) && (
+                        <Link
+                            to="/"
+                            className={`px-3 py-2 rounded-lg text-xs font-oxanium font-semibold tracking-wide transition-all border ${
+                                isActive('/')
+                                    ? 'bg-cyber-gold/15 border-cyber-gold/40 text-cyber-gold'
+                                    : 'border-transparent text-gray-300 hover:text-white hover:bg-white/5'
+                            }`}
+                        >
+                            Painel
+                        </Link>
+                    )}
 
-                        {navGroups.map((group) => (
+                    {navGroups.map((group) => {
+                        const sectionActive = isSectionActive(group.items.map((i) => i.path));
+                        return (
                             <div key={group.label} className="relative group/menu">
-                                <button className={`px-3 py-2 text-[10px] font-black tracking-widest uppercase transition-all flex items-center gap-1 relative ${isSectionActive(group.items.map(i => i.path)) ? 'text-cyber-gold' : 'text-cyber-gold/60 group-hover/menu:text-cyber-gold'}`}>
-                                    {group.label}
-                                    <ChevronDown size={10} className="ml-1 opacity-50" />
+                                <button
+                                    type="button"
+                                    className={`px-3 py-2 rounded-lg text-xs font-oxanium font-semibold tracking-wide transition-all inline-flex items-center gap-1.5 border ${
+                                        sectionActive
+                                            ? 'bg-cyber-gold/15 border-cyber-gold/40 text-cyber-gold'
+                                            : 'border-transparent text-gray-300 hover:text-white hover:bg-white/5'
+                                    }`}
+                                >
+                                    <span>{group.label}</span>
+                                    <ChevronDown className="w-3.5 h-3.5 opacity-60 group-hover/menu:rotate-180 transition-transform duration-150" />
                                 </button>
 
                                 {/* Dropdown */}
-                                <div className="absolute left-0 top-full pt-4 w-48 opacity-0 invisible group-hover/menu:opacity-100 group-hover/menu:visible transition-all duration-200 transform group-hover/menu:translate-y-0 translate-y-2">
-                                    <div className="bg-black/95 border border-cyber-gold/40 p-2 shadow-[0_0_30px_rgba(0,0,0,0.8)] backdrop-blur-xl relative hud-card bottom-brackets">
-                                        <div className="static-overlay opacity-10"></div>
+                                <div
+                                    className={`absolute top-full pt-2 w-56 opacity-0 invisible group-hover/menu:opacity-100 group-hover/menu:visible transition-all duration-150 translate-y-1 group-hover/menu:translate-y-0 z-50 ${
+                                        group.alignRight ? 'right-0' : 'left-0'
+                                    }`}
+                                >
+                                    <div className="bg-[#131826]/95 backdrop-blur-xl border border-white/15 rounded-xl p-1.5 shadow-2xl shadow-black/70">
                                         {group.items.map((item) => (
                                             <Link
-                                                key={item.label}
+                                                key={item.path}
                                                 to={item.path}
-                                                className={`block px-4 py-3 text-[10px] font-black tracking-widest uppercase hover:bg-cyber-gold/10 transition-colors ${isActive(item.path) ? 'text-cyber-gold border-l-2 border-cyber-gold bg-cyber-gold/5' : 'text-cyber-gold/60'}`}
+                                                className={`block px-3 py-2.5 rounded-lg text-xs font-oxanium font-semibold transition-colors ${
+                                                    isActive(item.path)
+                                                        ? 'bg-cyber-gold/15 text-cyber-gold'
+                                                        : 'text-gray-300 hover:text-white hover:bg-white/5'
+                                                }`}
                                             >
                                                 {item.label}
                                             </Link>
@@ -166,16 +152,14 @@ export const AppHeader: React.FC = () => {
                                     </div>
                                 </div>
                             </div>
-                        ))}
-                    </nav>
+                        );
+                    })}
+                </nav>
 
-                    {/* Desktop User Menu */}
-                    <div className="hidden md:block">
-                        <UserMenu />
-                    </div>
+                {/* User Menu (Desktop & Mobile) */}
+                <div className="shrink-0">
+                    <UserMenu />
                 </div>
-
-                {/* Mobile Menu removed — bottom tab navigation handles mobile nav */}
             </div>
         </header>
     );

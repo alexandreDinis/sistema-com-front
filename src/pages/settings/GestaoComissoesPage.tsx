@@ -1,6 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Loader2, AlertCircle, DollarSign, Check, RefreshCw, Wallet } from 'lucide-react';
+import {
+    ArrowLeft,
+    Loader2,
+    AlertCircle,
+    DollarSign,
+    Check,
+    RefreshCw,
+    Wallet,
+    ChevronLeft,
+    ChevronRight,
+    CheckCircle2,
+    Clock,
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { comissaoService } from '../../services/comissaoService';
 import type { ComissaoFuncionario } from '../../services/comissaoService';
@@ -8,8 +20,29 @@ import { ActionModal } from '../../components/modals/ActionModal';
 import type { ActionModalType } from '../../components/modals/ActionModal';
 import { AdiantamentoModal } from '../../components/modals/AdiantamentoModal';
 
-const formatarMoeda = (valor: number) => {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor);
+const MESES_PT = [
+    'Janeiro',
+    'Fevereiro',
+    'Março',
+    'Abril',
+    'Maio',
+    'Junho',
+    'Julho',
+    'Agosto',
+    'Setembro',
+    'Outubro',
+    'Novembro',
+    'Dezembro',
+];
+
+const formatarMoeda = (valor: number) =>
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor || 0);
+
+const getIniciais = (nome?: string): string => {
+    if (!nome) return 'PR';
+    const partes = nome.trim().split(/\s+/).filter(Boolean);
+    if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase();
+    return (partes[0][0] + partes[1][0]).toUpperCase();
 };
 
 export const GestaoComissoesPage: React.FC = () => {
@@ -17,17 +50,21 @@ export const GestaoComissoesPage: React.FC = () => {
     const agora = new Date();
     const [ano, setAno] = useState(agora.getFullYear());
     const [mes, setMes] = useState(agora.getMonth() + 1);
+
     const [actionModal, setActionModal] = useState<{
         isOpen: boolean;
         type: ActionModalType;
         title: string;
         message: string;
+        confirmText?: string;
+        showCancel?: boolean;
         onConfirm?: () => void;
     }>({
         isOpen: false,
         type: 'info',
         title: '',
-        message: ''
+        message: '',
+        showCancel: false,
     });
 
     const [adiantamentoModal, setAdiantamentoModal] = useState<{
@@ -37,19 +74,31 @@ export const GestaoComissoesPage: React.FC = () => {
     }>({
         isOpen: false,
         funcionarioId: null,
-        funcionarioNome: ''
+        funcionarioNome: '',
     });
 
-    const { data: comissoes, isLoading, isError, refetch } = useQuery({
+    const { data: comissoes = [], isLoading, isError, refetch } = useQuery({
         queryKey: ['comissoes-empresa', ano, mes],
-        queryFn: () => comissaoService.listarComissoesEmpresa(ano, mes)
+        queryFn: () => comissaoService.listarComissoesEmpresa(ano, mes),
     });
 
     const quitarMutation = useMutation({
         mutationFn: (id: number) => comissaoService.quitarComissao(id),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['comissoes-empresa', ano, mes] });
-        }
+            queryClient.invalidateQueries({ queryKey: ['comissao'] });
+        },
+        onError: () => {
+            setActionModal({
+                isOpen: true,
+                type: 'danger',
+                title: 'Erro ao Quitar',
+                message: 'Não foi possível quitar este repasse. Tente novamente.',
+                confirmText: 'FECHAR',
+                showCancel: false,
+                onConfirm: () => setActionModal((prev) => ({ ...prev, isOpen: false })),
+            });
+        },
     });
 
     const recalcularMutation = useMutation({
@@ -57,216 +106,464 @@ export const GestaoComissoesPage: React.FC = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['comissoes-empresa'] });
             queryClient.invalidateQueries({ queryKey: ['comissao'] });
-
             setActionModal({
                 isOpen: true,
                 type: 'success',
                 title: 'Sucesso',
-                message: 'Comissão recalculada com sucesso',
-                onConfirm: () => setActionModal(prev => ({ ...prev, isOpen: false }))
+                message: 'Comissão recalculada com sucesso.',
+                confirmText: 'OK',
+                showCancel: false,
+                onConfirm: () => setActionModal((prev) => ({ ...prev, isOpen: false })),
             });
         },
-        onError: (error) => {
-            console.error(error);
+        onError: () => {
             setActionModal({
                 isOpen: true,
                 type: 'danger',
                 title: 'Erro',
-                message: 'Erro ao recalcular comissões',
-                onConfirm: () => setActionModal(prev => ({ ...prev, isOpen: false }))
+                message: 'Erro ao recalcular comissões.',
+                confirmText: 'FECHAR',
+                showCancel: false,
+                onConfirm: () => setActionModal((prev) => ({ ...prev, isOpen: false })),
             });
-        }
+        },
     });
 
-    const meses = [
-        'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-        'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
-    ];
+    const resumo = useMemo(() => {
+        return comissoes.reduce(
+            (acc, c) => {
+                acc.saldoTotal += c.saldoAPagar || 0;
+                acc.brutoTotal += c.valorBruto || 0;
+                acc.adiantadoTotal += c.adiantamentos || 0;
+                acc.pagoTotal += c.valorQuitado || 0;
+                if (c.quitado) acc.qtdPagos += 1;
+                else acc.qtdPendentes += 1;
+                return acc;
+            },
+            { saldoTotal: 0, brutoTotal: 0, adiantadoTotal: 0, pagoTotal: 0, qtdPendentes: 0, qtdPagos: 0 }
+        );
+    }, [comissoes]);
+
+    const periodoLabel = `${MESES_PT[mes - 1]} ${ano}`;
+
+    const handlePreviousMonth = () => {
+        if (mes === 1) {
+            setMes(12);
+            setAno((prev) => prev - 1);
+        } else {
+            setMes((prev) => prev - 1);
+        }
+    };
+
+    const handleNextMonth = () => {
+        if (mes === 12) {
+            setMes(1);
+            setAno((prev) => prev + 1);
+        } else {
+            setMes((prev) => prev + 1);
+        }
+    };
+
+    const handleSolicitarQuitacao = (c: ComissaoFuncionario) => {
+        setActionModal({
+            isOpen: true,
+            type: 'warning',
+            title: 'Confirmar Quitação',
+            message: `Deseja quitar o repasse de ${c.funcionarioNome} no valor de ${formatarMoeda(c.saldoAPagar)}?`,
+            confirmText: 'SIM, QUITAR',
+            showCancel: true,
+            onConfirm: () => {
+                setActionModal((prev) => ({ ...prev, isOpen: false }));
+                quitarMutation.mutate(c.id);
+            },
+        });
+    };
 
     return (
-        <div className="space-y-6 pb-20">
-            {/* Header */}
-            <div className="flex justify-between items-center border-b border-cyber-gold/20 pb-4">
-                <div>
-                    <h1 className="text-3xl font-black text-cyber-gold tracking-tighter uppercase glitch flex items-center gap-3">
-                        <DollarSign size={28} />
-                        Gestão de Pagamentos
-                    </h1>
-                    <p className="text-cyber-gold/60 font-mono text-sm mt-2">
-                        Visualize e pague repasses de todos os prestadores
-                    </p>
+        <div className="space-y-5 pb-20">
+            <Link
+                to="/settings/comissao"
+                className="inline-flex items-center gap-1.5 text-gray-400 hover:text-cyber-gold transition-colors font-oxanium text-xs font-semibold"
+            >
+                <ArrowLeft className="w-4 h-4" />
+                Voltar para Configurações de Comissão
+            </Link>
+
+            {/* Header + Período + Recalcular */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-cyber-gold/10 border border-cyber-gold/35 text-cyber-gold flex items-center justify-center shrink-0">
+                        <DollarSign className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0">
+                        <h1 className="text-xl sm:text-2xl font-orbitron font-bold text-white tracking-wide truncate">
+                            Gestão de Pagamentos
+                        </h1>
+                        <p className="text-xs sm:text-sm text-gray-400 hidden sm:block">
+                            Visualize repasses, lance adiantamentos e faça o fechamento de todos os prestadores.
+                        </p>
+                    </div>
                 </div>
-                <div className="flex gap-3">
-                    <Link
-                        to="/settings/comissao"
-                        className="text-cyber-gold/60 hover:text-cyber-gold px-4 py-2 font-oxanium text-sm uppercase transition-colors flex items-center gap-2"
+
+                <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-between flex-1 sm:flex-initial bg-black/50 border border-white/10 rounded-xl p-1">
+                        <button
+                            type="button"
+                            onClick={handlePreviousMonth}
+                            aria-label="Mês anterior"
+                            className="w-9 h-9 rounded-lg flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
+                        >
+                            <ChevronLeft className="w-4 h-4" />
+                        </button>
+                        <span className="px-3 sm:px-4 text-sm font-oxanium font-bold text-white text-center min-w-[136px]">
+                            {periodoLabel}
+                        </span>
+                        <button
+                            type="button"
+                            onClick={handleNextMonth}
+                            aria-label="Próximo mês"
+                            className="w-9 h-9 rounded-lg flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
+                        >
+                            <ChevronRight className="w-4 h-4" />
+                        </button>
+                    </div>
+
+                    <button
+                        type="button"
+                        onClick={() => recalcularMutation.mutate()}
+                        disabled={recalcularMutation.isPending}
+                        title="Força o recálculo de todos os repasses (exceto pagos)"
+                        className="h-11 px-3.5 rounded-xl bg-amber-500/15 border border-amber-500/35 text-amber-300 hover:bg-amber-500/25 disabled:opacity-50 transition-colors inline-flex items-center gap-2 text-xs font-oxanium font-bold shrink-0"
                     >
-                        <ArrowLeft size={16} /> Voltar
-                    </Link>
+                        {recalcularMutation.isPending ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                            <RefreshCw className="w-4 h-4" />
+                        )}
+                        <span>Recalcular</span>
+                    </button>
                 </div>
             </div>
 
-            {/* Aviso de Recálculo Necessário */}
-            <div className="bg-yellow-500/10 border border-yellow-500/30 p-4 flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-yellow-500 shrink-0 mt-0.5" />
-                <p className="text-yellow-500/90 text-sm font-mono">
-                    Atenção: É necessário recalcular os repasses ao acessar esta página para garantir que os valores estejam atualizados com o faturamento mais recente.
+            {/* Aviso de Recálculo */}
+            <div className="rounded-xl bg-amber-500/10 border border-amber-500/25 px-4 py-3 flex items-start gap-2.5 text-xs text-amber-200/90">
+                <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                <p>
+                    É necessário clicar em <strong>Recalcular</strong> ao acessar esta página para garantir que os
+                    valores em aberto estejam atualizados com o faturamento mais recente.
                 </p>
             </div>
 
-            {/* Filtros */}
-            <div className="flex gap-4 items-center bg-black/40 border border-cyber-gold/20 p-4">
-                <label className="text-cyber-gold/60 text-sm font-mono">PERÍODO:</label>
-                <select
-                    value={mes}
-                    onChange={(e) => setMes(parseInt(e.target.value))}
-                    className="bg-black border border-cyber-gold/30 text-cyber-gold px-4 py-2 text-sm font-mono"
-                >
-                    {meses.map((m, idx) => (
-                        <option key={idx} value={idx + 1}>{m}</option>
-                    ))}
-                </select>
-                <select
-                    value={ano}
-                    onChange={(e) => setAno(parseInt(e.target.value))}
-                    className="bg-black border border-cyber-gold/30 text-cyber-gold px-4 py-2 text-sm font-mono"
-                >
-                    {[2024, 2025, 2026].map(a => (
-                        <option key={a} value={a}>{a}</option>
-                    ))}
-                </select>
+            {/* 4 KPIs Resumo */}
+            {!isLoading && !isError && comissoes.length > 0 && (
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div className="min-w-0 overflow-hidden rounded-2xl bg-gradient-to-br from-[#171c2b] to-[#10131d] border border-cyber-gold/35 p-4">
+                        <div className="text-[10px] font-oxanium font-bold uppercase tracking-wider text-cyber-gold">
+                            Saldo a Pagar
+                        </div>
+                        <div className="text-lg sm:text-2xl font-orbitron font-bold text-cyber-gold tabular-nums mt-1.5">
+                            {formatarMoeda(resumo.saldoTotal)}
+                        </div>
+                        <div className="text-[11px] text-gray-400 mt-1">
+                            {resumo.qtdPendentes} pendente{resumo.qtdPendentes === 1 ? '' : 's'}
+                        </div>
+                    </div>
 
-                {/* Botão Atualizar REMOVIDO conforme solicitado */}
+                    <div className="min-w-0 overflow-hidden rounded-2xl bg-black/45 border border-white/10 p-4">
+                        <div className="text-[10px] font-oxanium font-bold uppercase tracking-wider text-gray-400">
+                            Comissão Bruta
+                        </div>
+                        <div className="text-lg sm:text-2xl font-mono font-bold text-white tabular-nums mt-1.5">
+                            {formatarMoeda(resumo.brutoTotal)}
+                        </div>
+                        <div className="text-[11px] text-gray-500 mt-1">Total calculado no mês</div>
+                    </div>
 
-                <button
-                    onClick={() => recalcularMutation.mutate()}
-                    disabled={recalcularMutation.isPending}
-                    className="px-4 py-2 bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-colors flex items-center gap-2 ml-auto disabled:opacity-50"
-                    title="Força o recálculo de todos os repasses (exceto pagos)"
-                >
-                    {recalcularMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-                    Recalcular
-                </button>
-            </div>
+                    <div className="min-w-0 overflow-hidden rounded-2xl bg-black/45 border border-white/10 p-4">
+                        <div className="text-[10px] font-oxanium font-bold uppercase tracking-wider text-gray-400">
+                            Adiantamentos
+                        </div>
+                        <div className="text-lg sm:text-2xl font-mono font-bold text-amber-400 tabular-nums mt-1.5">
+                            {formatarMoeda(resumo.adiantadoTotal)}
+                        </div>
+                        <div className="text-[11px] text-gray-500 mt-1">Vales já descontados</div>
+                    </div>
+
+                    <div className="min-w-0 overflow-hidden rounded-2xl bg-black/45 border border-white/10 p-4">
+                        <div className="text-[10px] font-oxanium font-bold uppercase tracking-wider text-gray-400">
+                            Já Pago
+                        </div>
+                        <div className="text-lg sm:text-2xl font-mono font-bold text-emerald-400 tabular-nums mt-1.5">
+                            {formatarMoeda(resumo.pagoTotal)}
+                        </div>
+                        <div className="text-[11px] text-gray-500 mt-1">
+                            {resumo.qtdPagos} quitado{resumo.qtdPagos === 1 ? '' : 's'}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Loading */}
-            {
-                isLoading && (
-                    <div className="flex items-center justify-center py-20">
-                        <Loader2 className="w-8 h-8 text-cyber-gold animate-spin" />
-                        <span className="ml-3 text-cyber-gold/60 font-mono">Carregando repasses...</span>
+            {isLoading && (
+                <div className="space-y-3">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                        {[1, 2, 3, 4].map((i) => (
+                            <div
+                                key={i}
+                                className="h-24 rounded-2xl bg-black/40 border border-white/10 animate-pulse"
+                            />
+                        ))}
                     </div>
-                )
-            }
+                    <div className="h-48 rounded-2xl bg-black/40 border border-white/10 animate-pulse" />
+                </div>
+            )}
 
             {/* Error */}
-            {
-                isError && (
-                    <div className="bg-red-500/10 border border-red-500/30 p-6 text-center">
-                        <AlertCircle className="w-8 h-8 text-red-400 mx-auto mb-3" />
-                        <p className="text-red-400 mb-4">Erro ao carregar repasses</p>
-                        <button
-                            onClick={() => refetch()}
-                            className="px-4 py-2 bg-red-500/20 border border-red-500/30 text-red-400 hover:bg-red-500 hover:text-white transition-all flex items-center gap-2 mx-auto"
-                        >
-                            <RefreshCw size={14} /> Tentar Novamente
-                        </button>
-                    </div>
-                )
-            }
+            {isError && (
+                <div className="rounded-2xl bg-red-500/10 border border-red-500/30 p-8 text-center">
+                    <AlertCircle className="w-8 h-8 text-red-400 mx-auto mb-2.5" />
+                    <p className="text-sm text-red-300 mb-4">Erro ao carregar repasses de {periodoLabel}.</p>
+                    <button
+                        type="button"
+                        onClick={() => refetch()}
+                        className="px-4 py-2 rounded-xl bg-red-500/20 border border-red-500/35 text-red-300 hover:bg-red-500 hover:text-white transition-all inline-flex items-center gap-2 text-xs font-oxanium font-bold"
+                    >
+                        <RefreshCw className="w-3.5 h-3.5" /> Tentar Novamente
+                    </button>
+                </div>
+            )}
 
             {/* Empty */}
-            {
-                !isLoading && !isError && (!comissoes || comissoes.length === 0) && (
-                    <div className="bg-black/40 border border-cyber-gold/20 p-10 text-center">
-                        <DollarSign className="w-12 h-12 text-cyber-gold/30 mx-auto mb-4" />
-                        <h3 className="text-cyber-gold font-bold text-lg mb-2">Nenhum Repasse</h3>
-                        <p className="text-cyber-gold/50 text-sm">
-                            Nenhum prestador tem repasse calculado para este período.
-                        </p>
-                    </div>
-                )
-            }
+            {!isLoading && !isError && comissoes.length === 0 && (
+                <div className="rounded-2xl bg-black/40 border border-white/10 p-10 text-center">
+                    <DollarSign className="w-10 h-10 text-gray-600 mx-auto mb-3" />
+                    <h3 className="text-base font-bold text-white mb-1">Nenhum repasse em {periodoLabel}</h3>
+                    <p className="text-xs sm:text-sm text-gray-400">
+                        Nenhum prestador possui repasse calculado para este período.
+                    </p>
+                </div>
+            )}
 
-            {/* Table */}
-            {
-                !isLoading && !isError && comissoes && comissoes.length > 0 && (
-                    <div className="overflow-x-auto">
-                        <table className="w-full border border-cyber-gold/20">
-                            <thead className="bg-cyber-gold/10">
-                                <tr className="text-left text-xs font-mono text-cyber-gold/80 uppercase tracking-wider">
-                                    <th className="p-4 border-b border-cyber-gold/20">Prestador</th>
-                                    <th className="p-4 border-b border-cyber-gold/20 text-right">Faturamento</th>
-                                    <th className="p-4 border-b border-cyber-gold/20 text-right">%</th>
-                                    <th className="p-4 border-b border-cyber-gold/20 text-right">Bruto</th>
-                                    <th className="p-4 border-b border-cyber-gold/20 text-right">Adiant.</th>
-                                    <th className="p-4 border-b border-cyber-gold/20 text-right">Já Pago</th>
-                                    <th className="p-4 border-b border-cyber-gold/20 text-right">Saldo</th>
-                                    <th className="p-4 border-b border-cyber-gold/20 text-center">Status</th>
-                                    <th className="p-4 border-b border-cyber-gold/20 text-center">Ações</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {comissoes.map((c: ComissaoFuncionario) => (
-                                    <tr key={c.id} className="border-b border-cyber-gold/10 hover:bg-cyber-gold/5 transition-colors">
-                                        <td className="p-4">
-                                            <div className="font-bold text-cyber-gold">{c.funcionarioNome}</div>
-                                            <div className="text-xs text-cyber-gold/50">{c.funcionarioEmail}</div>
-                                        </td>
-                                        <td className="p-4 text-right font-mono text-cyber-gold/80">{formatarMoeda(c.faturamento)}</td>
-                                        <td className="p-4 text-right font-mono text-cyber-gold/60">{c.porcentagem}%</td>
-                                        <td className="p-4 text-right font-mono text-cyber-gold/80">{formatarMoeda(c.valorBruto)}</td>
-                                        <td className="p-4 text-right font-mono text-red-400/80">-{formatarMoeda(c.adiantamentos)}</td>
-                                        <td className="p-4 text-right font-mono text-blue-400/80">-{formatarMoeda(c.valorQuitado || 0)}</td>
-                                        <td className="p-4 text-right font-mono font-bold text-cyber-gold">{formatarMoeda(c.saldoAPagar)}</td>
-                                        <td className="p-4 text-center">
-                                            {c.quitado ? (
-                                                <span className="px-2 py-1 bg-green-500/20 text-green-400 text-xs font-mono rounded">PAGO</span>
-                                            ) : (
-                                                <span className="px-2 py-1 bg-yellow-500/20 text-yellow-400 text-xs font-mono rounded">PENDENTE</span>
-                                            )}
-                                        </td>
-                                        <td className="p-4 text-center">
-                                            {!c.quitado && (
-                                                <div className="flex gap-2 justify-center">
-                                                    <button
-                                                        onClick={() => setAdiantamentoModal({
-                                                            isOpen: true,
-                                                            funcionarioId: c.funcionarioId,
-                                                            funcionarioNome: c.funcionarioNome
-                                                        })}
-                                                        className="px-3 py-1 bg-cyber-gold/20 border border-cyber-gold/40 text-cyber-gold text-xs hover:bg-cyber-gold/30 flex items-center gap-1"
-                                                        title="Lançar Adiantamento para este prestador"
-                                                    >
-                                                        <Wallet size={12} /> Adiantar
-                                                    </button>
-                                                    {c.saldoAPagar > 0 && (
-                                                        <button
-                                                            onClick={() => quitarMutation.mutate(c.id)}
-                                                            disabled={quitarMutation.isPending}
-                                                            className="px-3 py-1 bg-green-500/20 border border-green-500/40 text-green-400 text-xs hover:bg-green-500/30 disabled:opacity-50 flex items-center gap-1"
-                                                            title="Marcar como pago manualmente"
-                                                        >
-                                                            <Check size={12} /> Quitar
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            )}
-                                            {c.quitado && c.dataQuitacao && (
-                                                <span className="text-xs text-cyber-gold/40">{new Date(c.dataQuitacao).toLocaleDateString('pt-BR')}</span>
-                                            )}
-                                        </td>
+            {/* Lista: Tabela Desktop + Cards Mobile */}
+            {!isLoading && !isError && comissoes.length > 0 && (
+                <>
+                    {/* Desktop Table */}
+                    <div className="hidden lg:block rounded-2xl bg-black/45 border border-white/10 overflow-hidden">
+                        <div className="overflow-x-auto">
+                            <table className="w-full border-collapse">
+                                <thead>
+                                    <tr className="bg-white/[0.03] border-b border-white/10 text-left text-[11px] font-oxanium uppercase tracking-wider text-gray-400">
+                                        <th className="py-3.5 px-4">Prestador</th>
+                                        <th className="py-3.5 px-4 text-right">Faturamento</th>
+                                        <th className="py-3.5 px-3 text-right">Taxa</th>
+                                        <th className="py-3.5 px-4 text-right">Bruto</th>
+                                        <th className="py-3.5 px-4 text-right">Adiant.</th>
+                                        <th className="py-3.5 px-4 text-right">Já Pago</th>
+                                        <th className="py-3.5 px-4 text-right">Saldo</th>
+                                        <th className="py-3.5 px-4 text-center">Status</th>
+                                        <th className="py-3.5 px-4 text-center">Ações</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody className="divide-y divide-white/5 text-sm">
+                                    {comissoes.map((c: ComissaoFuncionario) => (
+                                        <tr key={c.id} className="hover:bg-white/[0.03] transition-colors">
+                                            <td className="py-3.5 px-4">
+                                                <div className="flex items-center gap-3 min-w-0">
+                                                    <div className="w-9 h-9 rounded-lg bg-cyber-gold/15 border border-cyber-gold/30 text-cyber-gold text-xs font-bold flex items-center justify-center shrink-0">
+                                                        {getIniciais(c.funcionarioNome)}
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <div className="font-bold text-white truncate">
+                                                            {c.funcionarioNome}
+                                                        </div>
+                                                        <div className="text-xs text-gray-500 truncate">
+                                                            {c.funcionarioEmail}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="py-3.5 px-4 text-right font-mono text-gray-200 tabular-nums whitespace-nowrap">
+                                                {formatarMoeda(c.faturamento)}
+                                            </td>
+                                            <td className="py-3.5 px-3 text-right font-mono text-gray-400 tabular-nums">
+                                                {c.porcentagem}%
+                                            </td>
+                                            <td className="py-3.5 px-4 text-right font-mono text-gray-200 tabular-nums whitespace-nowrap">
+                                                {formatarMoeda(c.valorBruto)}
+                                            </td>
+                                            <td className="py-3.5 px-4 text-right font-mono text-amber-400 tabular-nums whitespace-nowrap">
+                                                {c.adiantamentos > 0 ? `- ${formatarMoeda(c.adiantamentos)}` : formatarMoeda(0)}
+                                            </td>
+                                            <td className="py-3.5 px-4 text-right font-mono text-emerald-400 tabular-nums whitespace-nowrap">
+                                                {formatarMoeda(c.valorQuitado || 0)}
+                                            </td>
+                                            <td className="py-3.5 px-4 text-right font-mono font-bold text-cyber-gold tabular-nums whitespace-nowrap">
+                                                {formatarMoeda(c.saldoAPagar)}
+                                            </td>
+                                            <td className="py-3.5 px-4 text-center">
+                                                {c.quitado ? (
+                                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-oxanium font-bold uppercase bg-emerald-500/15 border border-emerald-500/35 text-emerald-400">
+                                                        <CheckCircle2 className="w-3 h-3" /> Pago
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-oxanium font-bold uppercase bg-amber-500/15 border border-amber-500/35 text-amber-400">
+                                                        <Clock className="w-3 h-3" /> Pendente
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td className="py-3.5 px-4 text-center">
+                                                {!c.quitado ? (
+                                                    <div className="inline-flex items-center gap-1.5">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                setAdiantamentoModal({
+                                                                    isOpen: true,
+                                                                    funcionarioId: c.funcionarioId,
+                                                                    funcionarioNome: c.funcionarioNome,
+                                                                })
+                                                            }
+                                                            className="px-2.5 py-1.5 rounded-lg bg-cyber-gold/15 border border-cyber-gold/35 text-cyber-gold hover:bg-cyber-gold hover:text-black text-xs font-oxanium font-bold inline-flex items-center gap-1 transition-colors"
+                                                            title="Lançar Adiantamento para este prestador"
+                                                        >
+                                                            <Wallet className="w-3.5 h-3.5" /> Adiantar
+                                                        </button>
+                                                        {c.saldoAPagar > 0 && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleSolicitarQuitacao(c)}
+                                                                disabled={quitarMutation.isPending}
+                                                                className="px-2.5 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/35 text-emerald-400 hover:bg-emerald-500 hover:text-black disabled:opacity-50 text-xs font-oxanium font-bold inline-flex items-center gap-1 transition-colors"
+                                                                title="Marcar como pago manualmente"
+                                                            >
+                                                                <Check className="w-3.5 h-3.5" /> Quitar
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    c.dataQuitacao && (
+                                                        <span className="text-xs text-gray-500 font-mono">
+                                                            {new Date(c.dataQuitacao).toLocaleDateString('pt-BR')}
+                                                        </span>
+                                                    )
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                )
-            }
+
+                    {/* Mobile / Tablet Cards (zero horizontal scroll) */}
+                    <div className="lg:hidden space-y-3">
+                        {comissoes.map((c: ComissaoFuncionario) => (
+                            <div
+                                key={c.id}
+                                className="min-w-0 w-full overflow-hidden rounded-2xl bg-black/45 border border-white/10 p-4 space-y-3"
+                            >
+                                <div className="flex items-start justify-between gap-2 min-w-0">
+                                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                                        <div className="w-9 h-9 rounded-xl bg-cyber-gold/15 border border-cyber-gold/30 text-cyber-gold text-xs font-bold flex items-center justify-center shrink-0">
+                                            {getIniciais(c.funcionarioNome)}
+                                        </div>
+                                        <div className="min-w-0">
+                                            <div className="text-sm font-bold text-white truncate">
+                                                {c.funcionarioNome}
+                                            </div>
+                                            <div className="text-[11px] text-gray-400 truncate">
+                                                Taxa {c.porcentagem}% · Fat. {formatarMoeda(c.faturamento)}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {c.quitado ? (
+                                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-oxanium font-bold uppercase bg-emerald-500/15 border border-emerald-500/35 text-emerald-400 shrink-0">
+                                            Pago
+                                        </span>
+                                    ) : (
+                                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-oxanium font-bold uppercase bg-amber-500/15 border border-amber-500/35 text-amber-400 shrink-0">
+                                            Pendente
+                                        </span>
+                                    )}
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div className="rounded-xl bg-white/[0.03] border border-white/10 p-2.5">
+                                        <div className="text-[10px] text-gray-500 uppercase">Bruto</div>
+                                        <div className="text-xs sm:text-sm font-mono font-bold text-white tabular-nums mt-0.5">
+                                            {formatarMoeda(c.valorBruto)}
+                                        </div>
+                                    </div>
+                                    <div className="rounded-xl bg-white/[0.03] border border-white/10 p-2.5">
+                                        <div className="text-[10px] text-gray-500 uppercase">Adiantamentos</div>
+                                        <div className="text-xs sm:text-sm font-mono font-bold text-amber-400 tabular-nums mt-0.5">
+                                            {c.adiantamentos > 0
+                                                ? `- ${formatarMoeda(c.adiantamentos)}`
+                                                : formatarMoeda(0)}
+                                        </div>
+                                    </div>
+                                    <div className="rounded-xl bg-white/[0.03] border border-white/10 p-2.5">
+                                        <div className="text-[10px] text-gray-500 uppercase">Já Pago</div>
+                                        <div className="text-xs sm:text-sm font-mono font-bold text-emerald-400 tabular-nums mt-0.5">
+                                            {formatarMoeda(c.valorQuitado || 0)}
+                                        </div>
+                                    </div>
+                                    <div className="rounded-xl bg-cyber-gold/10 border border-cyber-gold/30 p-2.5">
+                                        <div className="text-[10px] text-cyber-gold uppercase font-semibold">
+                                            Saldo a Pagar
+                                        </div>
+                                        <div className="text-xs sm:text-sm font-mono font-bold text-cyber-gold tabular-nums mt-0.5">
+                                            {formatarMoeda(c.saldoAPagar)}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {!c.quitado ? (
+                                    <div className="grid grid-cols-2 gap-2 pt-1">
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                setAdiantamentoModal({
+                                                    isOpen: true,
+                                                    funcionarioId: c.funcionarioId,
+                                                    funcionarioNome: c.funcionarioNome,
+                                                })
+                                            }
+                                            className="py-2.5 px-3 rounded-xl bg-cyber-gold/15 border border-cyber-gold/35 text-cyber-gold hover:bg-cyber-gold hover:text-black text-xs font-oxanium font-bold flex items-center justify-center gap-1.5 transition-colors"
+                                        >
+                                            <Wallet className="w-3.5 h-3.5" /> Adiantar
+                                        </button>
+                                        {c.saldoAPagar > 0 && (
+                                            <button
+                                                type="button"
+                                                onClick={() => handleSolicitarQuitacao(c)}
+                                                disabled={quitarMutation.isPending}
+                                                className="py-2.5 px-3 rounded-xl bg-emerald-500/15 border border-emerald-500/35 text-emerald-400 hover:bg-emerald-500 hover:text-black disabled:opacity-50 text-xs font-oxanium font-bold flex items-center justify-center gap-1.5 transition-colors"
+                                            >
+                                                <Check className="w-3.5 h-3.5" /> Quitar
+                                            </button>
+                                        )}
+                                    </div>
+                                ) : (
+                                    c.dataQuitacao && (
+                                        <div className="text-xs text-gray-400 pt-2 border-t border-white/10 flex justify-between">
+                                            <span>Quitado em</span>
+                                            <span className="font-mono text-gray-300">
+                                                {new Date(c.dataQuitacao).toLocaleDateString('pt-BR')}
+                                            </span>
+                                        </div>
+                                    )
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </>
+            )}
 
             <AdiantamentoModal
                 isOpen={adiantamentoModal.isOpen}
-                onClose={() => setAdiantamentoModal(prev => ({ ...prev, isOpen: false }))}
+                onClose={() => setAdiantamentoModal((prev) => ({ ...prev, isOpen: false }))}
                 onSuccess={() => {
                     refetch();
                     setActionModal({
@@ -274,7 +571,9 @@ export const GestaoComissoesPage: React.FC = () => {
                         type: 'success',
                         title: 'Sucesso',
                         message: 'Adiantamento registrado e repasse atualizado.',
-                        onConfirm: () => setActionModal(prev => ({ ...prev, isOpen: false }))
+                        confirmText: 'OK',
+                        showCancel: false,
+                        onConfirm: () => setActionModal((prev) => ({ ...prev, isOpen: false })),
                     });
                 }}
                 funcionarioId={adiantamentoModal.funcionarioId || 0}
@@ -283,15 +582,14 @@ export const GestaoComissoesPage: React.FC = () => {
 
             <ActionModal
                 isOpen={actionModal.isOpen}
-                onClose={() => setActionModal(prev => ({ ...prev, isOpen: false }))}
+                onClose={() => setActionModal((prev) => ({ ...prev, isOpen: false }))}
                 type={actionModal.type}
                 title={actionModal.title}
                 message={actionModal.message}
                 onConfirm={actionModal.onConfirm}
-                showCancel={actionModal.type === 'warning'}
-                confirmText={actionModal.type === 'warning' ? 'SIM, RECALCULAR' : 'OK'}
+                showCancel={actionModal.showCancel}
+                confirmText={actionModal.confirmText || 'OK'}
             />
-        </div >
+        </div>
     );
 };
-

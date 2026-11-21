@@ -92,13 +92,13 @@ export const OperationalDashboard: React.FC = () => {
     return (
         <div className="space-y-5">
             {/* Cabeçalho */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-cyber-gold/10 border border-cyber-gold/35 text-cyber-gold flex items-center justify-center shrink-0">
-                        <Activity className="w-5 h-5" />
+            <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-cyber-gold/10 border border-cyber-gold/35 text-cyber-gold flex items-center justify-center shrink-0">
+                        <Activity className="w-4 h-4 sm:w-5 sm:h-5" />
                     </div>
                     <div className="min-w-0">
-                        <h1 className="text-xl sm:text-2xl font-orbitron font-bold text-white tracking-wide truncate">
+                        <h1 className="text-base sm:text-2xl font-orbitron font-bold text-white tracking-wide truncate">
                             Painel Operacional
                         </h1>
                         <p className="text-xs sm:text-sm text-gray-400 hidden sm:block">
@@ -107,7 +107,7 @@ export const OperationalDashboard: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
                     <Link
                         to="/clientes"
                         className="hidden sm:inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-black/50 border border-white/15 text-gray-200 hover:border-cyber-gold/45 hover:text-cyber-gold transition-colors font-oxanium text-xs sm:text-sm font-semibold"
@@ -117,7 +117,7 @@ export const OperationalDashboard: React.FC = () => {
                     </Link>
                     <Link
                         to="/os"
-                        className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 bg-cyber-gold text-black font-bold px-5 py-2.5 rounded-xl hover:bg-yellow-400 transition-all font-oxanium text-xs sm:text-sm shadow-lg shadow-cyber-gold/20"
+                        className="inline-flex items-center justify-center gap-1.5 bg-cyber-gold text-black font-bold px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-xl hover:bg-yellow-400 transition-all font-oxanium text-xs sm:text-sm shadow-lg shadow-cyber-gold/20 whitespace-nowrap"
                     >
                         <Plus className="w-4 h-4" />
                         Nova O.S.

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, DollarSign, Calendar, FileText, Loader2 } from 'lucide-react';
+import { X, Wallet, Calendar, FileText, Loader2, CheckCircle2 } from 'lucide-react';
 import { adiantamentoService } from '../../services/adiantamentoService';
 import { formatInputCurrency, parseCurrencyString } from '../../utils/formatters';
 
@@ -11,23 +11,54 @@ interface AdiantamentoModalProps {
     funcionarioNome: string;
 }
 
+interface ApiErrorLike {
+    response?: {
+        data?: {
+            message?: string;
+            mensagem?: string;
+        };
+    };
+}
+
+const getHojeIso = () => {
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+};
+
+const getIniciais = (nome?: string): string => {
+    if (!nome) return 'PR';
+    const partes = nome.trim().split(/\s+/).filter(Boolean);
+    if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase();
+    return (partes[0][0] + partes[1][0]).toUpperCase();
+};
+
 export const AdiantamentoModal: React.FC<AdiantamentoModalProps> = ({
     isOpen,
     onClose,
     onSuccess,
     funcionarioId,
-    funcionarioNome
+    funcionarioNome,
 }) => {
     const [valor, setValor] = useState('');
     const [descricao, setDescricao] = useState('');
-    const [dataPagamento, setDataPagamento] = useState(new Date().toISOString().split('T')[0]);
+    const [dataPagamento, setDataPagamento] = useState(getHojeIso);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     if (!isOpen) return null;
 
+    const handleClose = () => {
+        if (isLoading) return;
+        setError(null);
+        onClose();
+    };
+
     const handleValorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setValor(formatInputCurrency(e.target.value));
+        if (error) setError(null);
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -46,98 +77,141 @@ export const AdiantamentoModal: React.FC<AdiantamentoModalProps> = ({
                 usuarioId: funcionarioId,
                 valor: valorNumerico,
                 dataPagamento,
-                descricao: descricao || `Adiantamento para ${funcionarioNome}`
+                descricao: descricao.trim() || `Adiantamento para ${funcionarioNome}`,
             });
+            setValor('');
+            setDescricao('');
+            setDataPagamento(getHojeIso());
             onSuccess();
             onClose();
-        } catch (err: any) {
-            setError(err.response?.data?.message || 'Erro ao registrar adiantamento.');
+        } catch (err: unknown) {
+            const apiErr = (err as ApiErrorLike) || {};
+            setError(
+                apiErr.response?.data?.message ||
+                    apiErr.response?.data?.mensagem ||
+                    'Erro ao registrar adiantamento.'
+            );
         } finally {
             setIsLoading(false);
         }
     };
 
     return (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-black/90 border border-cyber-gold/30 p-6 rounded-lg max-w-md w-full relative shadow-[0_0_50px_rgba(212,175,55,0.15)]">
-                {/* Accent line */}
-                <div className="absolute top-0 left-0 w-1 h-full bg-cyber-gold animate-pulse"></div>
+        <div
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center sm:p-4"
+            onClick={(e) => {
+                if (e.target === e.currentTarget) handleClose();
+            }}
+        >
+            <div className="bg-[#111520] border border-cyber-gold/40 rounded-t-2xl sm:rounded-2xl max-w-md w-full shadow-2xl overflow-hidden">
+                <div className="sm:hidden w-10 h-1 bg-white/20 rounded-full mx-auto mt-2.5" />
 
-                <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-xl font-orbitron text-cyber-gold uppercase tracking-wider flex items-center gap-2">
-                        <DollarSign size={20} />
-                        Lançar Adiantamento
-                    </h3>
-                    <button onClick={onClose} className="text-cyber-gold/40 hover:text-cyber-gold transition-colors">
-                        <X size={20} />
+                {/* Header */}
+                <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-xl bg-cyber-gold/15 border border-cyber-gold/35 text-cyber-gold flex items-center justify-center shrink-0">
+                            <Wallet className="w-4 h-4" />
+                        </div>
+                        <div>
+                            <h3 className="text-base font-orbitron font-bold text-white">Lançar Adiantamento</h3>
+                            <p className="text-[11px] text-gray-400">O valor será descontado do saldo de repasse.</p>
+                        </div>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={handleClose}
+                        aria-label="Fechar"
+                        className="p-1.5 rounded-lg bg-white/5 border border-white/10 text-gray-400 hover:text-white transition-colors"
+                    >
+                        <X className="w-4 h-4" />
                     </button>
                 </div>
 
-                <div className="mb-6 p-3 bg-cyber-gold/5 border border-cyber-gold/20">
-                    <span className="text-[10px] font-mono text-cyber-gold/40 uppercase block mb-1">PRESTADOR_ALVO:</span>
-                    <p className="text-lg font-bold text-cyber-gold italic tracking-tight">{funcionarioNome}</p>
-                </div>
+                <form onSubmit={handleSubmit}>
+                    <div className="p-5 space-y-4">
+                        {/* Prestador */}
+                        <div className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/10">
+                            <div className="w-9 h-9 rounded-lg bg-cyber-gold/15 border border-cyber-gold/30 text-cyber-gold text-xs font-bold flex items-center justify-center shrink-0">
+                                {getIniciais(funcionarioNome)}
+                            </div>
+                            <div className="min-w-0">
+                                <span className="text-[10px] font-oxanium uppercase tracking-wider text-gray-500 block">
+                                    Prestador
+                                </span>
+                                <p className="text-sm font-bold text-white truncate">{funcionarioNome}</p>
+                            </div>
+                        </div>
 
-                {error && (
-                    <div className="mb-6 p-3 bg-red-500/10 border border-red-500/30 text-red-500 text-xs font-mono">
-                        {error}
+                        {error && (
+                            <div className="p-3 rounded-xl bg-red-500/15 border border-red-500/35 text-red-200 text-xs">
+                                {error}
+                            </div>
+                        )}
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label className="text-[11px] font-oxanium font-bold uppercase tracking-wider text-cyber-gold mb-1.5 flex items-center gap-1.5">
+                                    <Calendar className="w-3.5 h-3.5" /> Data *
+                                </label>
+                                <input
+                                    type="date"
+                                    value={dataPagamento}
+                                    onChange={(e) => setDataPagamento(e.target.value)}
+                                    className="w-full bg-black/50 border border-white/15 text-white px-3 py-2.5 rounded-xl text-sm focus:border-cyber-gold outline-none transition-colors"
+                                    required
+                                />
+                            </div>
+
+                            <div>
+                                <label className="text-[11px] font-oxanium font-bold uppercase tracking-wider text-cyber-gold mb-1.5 block">
+                                    Valor (R$) *
+                                </label>
+                                <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    value={valor}
+                                    onChange={handleValorChange}
+                                    placeholder="R$ 0,00"
+                                    className="w-full bg-black/50 border border-white/15 text-cyber-gold px-3 py-2.5 rounded-xl text-base font-mono font-bold focus:border-cyber-gold outline-none transition-colors"
+                                    required
+                                    autoFocus
+                                />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="text-[11px] font-oxanium font-bold uppercase tracking-wider text-gray-400 mb-1.5 flex items-center gap-1.5">
+                                <FileText className="w-3.5 h-3.5" /> Observação / Motivo (opcional)
+                            </label>
+                            <textarea
+                                value={descricao}
+                                onChange={(e) => setDescricao(e.target.value)}
+                                placeholder="Ex: Vale quinzenal, adiantamento de repasse..."
+                                rows={2}
+                                className="w-full bg-black/50 border border-white/15 text-white px-3 py-2.5 rounded-xl text-sm focus:border-cyber-gold outline-none transition-colors resize-none"
+                            />
+                        </div>
                     </div>
-                )}
 
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
-                        <label className="text-[10px] font-mono text-cyber-gold/60 uppercase block mb-1.5 flex items-center gap-1.5">
-                            <Calendar size={12} /> Data do Pagamento
-                        </label>
-                        <input
-                            type="date"
-                            value={dataPagamento}
-                            onChange={(e) => setDataPagamento(e.target.value)}
-                            className="w-full bg-black/40 border border-cyber-gold/20 text-cyber-gold p-2.5 text-sm font-mono focus:border-cyber-gold outline-none transition-all"
-                            required
-                        />
-                    </div>
-
-                    <div>
-                        <label className="text-[10px] font-mono text-cyber-gold/60 uppercase block mb-1.5 flex items-center gap-1.5">
-                            <DollarSign size={12} /> Valor do Adiantamento
-                        </label>
-                        <input
-                            type="text"
-                            value={valor}
-                            onChange={handleValorChange}
-                            placeholder="R$ 0,00"
-                            className="w-full bg-black/40 border border-cyber-gold/20 text-cyber-gold p-2.5 text-lg font-black italic focus:border-cyber-gold outline-none transition-all"
-                            required
-                        />
-                    </div>
-
-                    <div>
-                        <label className="text-[10px] font-mono text-cyber-gold/60 uppercase block mb-1.5 flex items-center gap-1.5">
-                            <FileText size={12} /> Observação / Motivo
-                        </label>
-                        <textarea
-                            value={descricao}
-                            onChange={(e) => setDescricao(e.target.value)}
-                            placeholder="Ex: Adiantamento de repasse..."
-                            className="w-full bg-black/40 border border-cyber-gold/20 text-cyber-gold p-2.5 text-xs font-mono min-h-[80px] focus:border-cyber-gold outline-none transition-all resize-none"
-                        />
-                    </div>
-
-                    <div className="flex gap-3 pt-4">
+                    <div className="px-5 py-3.5 border-t border-white/10 bg-black/25 flex items-center justify-between gap-3">
                         <button
                             type="button"
-                            onClick={onClose}
-                            className="flex-1 bg-white/5 text-cyber-gold/60 py-3 font-oxanium text-xs uppercase hover:bg-white/10 transition-all border border-white/5"
+                            onClick={handleClose}
+                            className="px-4 py-2 rounded-xl border border-white/15 text-gray-300 hover:text-white font-oxanium text-xs sm:text-sm font-semibold transition-colors"
                         >
-                            CANCELAR
+                            Cancelar
                         </button>
                         <button
                             type="submit"
                             disabled={isLoading || !valor}
-                            className="flex-1 bg-cyber-gold text-black py-3 font-oxanium font-bold text-xs uppercase hover:bg-yellow-400 transition-all shadow-[0_0_20px_rgba(212,175,55,0.3)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            className="bg-cyber-gold text-black font-bold px-5 py-2 rounded-xl hover:bg-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-oxanium text-xs sm:text-sm inline-flex items-center gap-1.5"
                         >
-                            {isLoading ? <Loader2 size={16} className="animate-spin" /> : 'CONFIRMAR'}
+                            {isLoading ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                                <CheckCircle2 className="w-4 h-4" />
+                            )}
+                            {isLoading ? 'Salvando...' : 'Confirmar Adiantamento'}
                         </button>
                     </div>
                 </form>
