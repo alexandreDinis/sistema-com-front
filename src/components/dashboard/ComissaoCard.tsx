@@ -1,182 +1,214 @@
-import React, { useState } from 'react';
+import React from 'react';
 import type { ComissaoCalculada } from '../../types';
 import { formatarMoeda, formatarPorcentagem } from '../../utils/formatters';
-import { TrendingUp, Percent, Landmark, ReceiptText, ArrowUpRight, AlertTriangle, CheckCircle2, Check } from 'lucide-react';
-import { comissaoService } from '../../services/comissaoService';
-import { authService } from '../../services/authService';
+import {
+    TrendingUp,
+    Percent,
+    Wallet,
+    ReceiptText,
+    AlertTriangle,
+    CheckCircle2,
+    Clock,
+} from 'lucide-react';
 
 interface ComissaoCardProps {
     comissao: ComissaoCalculada;
-    onQuitado?: () => void;
+    periodoLabel?: string;
 }
 
-export const ComissaoCard: React.FC<ComissaoCardProps> = ({ comissao, onQuitado }) => {
-    const isPositivo = comissao.saldoAReceber >= 0;
-    const temSaldoAnterior = comissao.saldoAnterior && comissao.saldoAnterior !== 0;
-    const user = authService.getCurrentUser();
-
-    // Verificação de permissão
-    const isAdmin = ['ROLE_ADMIN_EMPRESA', 'ADMIN_EMPRESA', 'ROLE_ADMIN', 'ADMIN'].includes(user?.role || '');
-
-    const [isQuitando, setIsQuitando] = useState(false);
-    const [isGerandoPagamento, setIsGerandoPagamento] = useState(false);
-
-    const handleQuitar = async () => {
-        if (!comissao.id) return;
-        setIsQuitando(true);
-        try {
-            await comissaoService.quitarComissao(comissao.id);
-            onQuitado?.();
-        } catch (error) {
-            console.error('Erro ao quitar:', error);
-        } finally {
-            setIsQuitando(false);
-        }
-    };
-
-    const handleGerarPagamento = async () => {
-        if (!comissao.id) return;
-        setIsGerandoPagamento(true);
-        try {
-            await comissaoService.gerarPagamentoComissao(comissao.id);
-            onQuitado?.();
-            alert('Pagamento gerado no financeiro com sucesso! (Status: PENDENTE)');
-        } catch (error) {
-            console.error('Erro ao gerar pagamento:', error);
-            alert('Erro ao gerar pagamento.');
-        } finally {
-            setIsGerandoPagamento(false);
-        }
-    };
+export const ComissaoCard: React.FC<ComissaoCardProps> = ({ comissao, periodoLabel }) => {
+    const saldo = comissao.saldoAReceber ?? 0;
+    const isPositivo = saldo >= 0;
+    const isQuitado = Boolean(comissao.quitado);
+    const saldoAnterior = comissao.saldoAnterior || 0;
+    const temSaldoAnterior = saldoAnterior !== 0;
+    const valorQuitado = comissao.valorQuitado || 0;
 
     return (
-        <div className="space-y-8 view-transition p-1">
-            <div className="hud-card group top-brackets bottom-brackets">
-                <div className="static-overlay opacity-5"></div>
-
-                <div className="px-8 py-4 bg-cyber-gold/5 border-b border-cyber-gold/20 flex justify-between items-center relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-2 h-full bg-cyber-gold animate-pulse"></div>
-                    <div>
-                        <div className="flex items-center gap-3">
-                            <span className="hud-tag">FEED_ESTÁVEL</span>
-                            <span className="text-[10px] font-mono text-cyber-gold/40">ID_NÓ: 0x{comissao.anoMesReferencia}</span>
-                            {comissao.quitado && (
-                                <span className="hud-tag bg-green-500/20 text-green-400 border-green-500/40 flex items-center gap-1">
-                                    <CheckCircle2 className="w-3 h-3" /> QUITADO
-                                </span>
-                            )}
+        <div className="space-y-4">
+            {/* Alerta de Saldo Anterior (Carryover) */}
+            {temSaldoAnterior && (
+                <div className="rounded-2xl bg-amber-500/10 border border-amber-500/30 px-4 py-3.5 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-9 h-9 rounded-xl bg-amber-500/15 text-amber-400 flex items-center justify-center shrink-0">
+                            <AlertTriangle className="w-4 h-4" />
                         </div>
-                        <h3 className="text-3xl font-black text-cyber-gold tracking-tighter italic mt-1">
-                            CRYSTAL_{comissao.anoMesReferencia}
-                        </h3>
+                        <div className="min-w-0">
+                            <div className="text-xs sm:text-sm font-bold text-amber-200">
+                                Saldo anterior acumulado
+                            </div>
+                            <p className="text-[11px] text-gray-400">
+                                Valor transportado do fechamento do período anterior
+                            </p>
+                        </div>
                     </div>
-                    <div className="flex items-center gap-6">
-                        <div className="text-right flex flex-col items-end">
-                            <span className="hud-label">NÍVEL_CÁLCULO</span>
-                            <p className="text-2xl font-black text-cyber-gold italic drop-shadow-[0_0_8px_rgba(212,175,55,0.3)]">{comissao.faixaComissao}</p>
-                        </div>
+                    <span className="text-sm sm:text-base font-bold text-amber-400 font-mono tabular-nums shrink-0">
+                        {saldoAnterior > 0 ? '+ ' : ''}
+                        {formatarMoeda(saldoAnterior)}
+                    </span>
+                </div>
+            )}
+
+            {/* Hero Card: Saldo Líquido a Receber (Demonstrativo) */}
+            <div
+                className={`rounded-2xl p-5 sm:p-6 border bg-gradient-to-br from-[#161c2c] via-[#10131d] to-[#141824] ${
+                    !isPositivo
+                        ? 'border-red-500/40'
+                        : isQuitado
+                          ? 'border-emerald-500/40'
+                          : 'border-cyber-gold/40'
+                }`}
+            >
+                <div className="flex flex-wrap items-center gap-2 mb-3">
+                    {isQuitado ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-oxanium font-bold uppercase tracking-wide bg-emerald-500/15 border border-emerald-500/35 text-emerald-400">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            Quitado
+                        </span>
+                    ) : !isPositivo ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-oxanium font-bold uppercase tracking-wide bg-red-500/15 border border-red-500/35 text-red-400">
+                            <AlertTriangle className="w-3.5 h-3.5" />
+                            Saldo devedor
+                        </span>
+                    ) : (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-oxanium font-bold uppercase tracking-wide bg-amber-500/15 border border-amber-500/35 text-amber-400">
+                            <Clock className="w-3.5 h-3.5" />
+                            Em aberto
+                        </span>
+                    )}
+
+                    {comissao.faixaComissao && (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-oxanium font-bold uppercase tracking-wide bg-cyber-gold/10 border border-cyber-gold/35 text-cyber-gold">
+                            {comissao.faixaComissao} · {formatarPorcentagem(comissao.porcentagemComissao)}
+                        </span>
+                    )}
+                </div>
+
+                <div className="text-[11px] font-oxanium uppercase tracking-wider text-gray-400 font-semibold">
+                    Saldo Líquido a Receber
+                </div>
+
+                <div
+                    className={`text-3xl sm:text-5xl font-orbitron font-bold tracking-tight tabular-nums mt-1 ${
+                        !isPositivo ? 'text-red-400' : isQuitado ? 'text-emerald-400' : 'text-cyber-gold'
+                    }`}
+                >
+                    {formatarMoeda(saldo)}
+                </div>
+
+                <p className="text-xs text-gray-400 mt-1.5">
+                    {isQuitado && comissao.dataQuitacao
+                        ? `Quitado em ${new Date(comissao.dataQuitacao).toLocaleDateString('pt-BR')} · `
+                        : ''}
+                    Referência: {periodoLabel || comissao.anoMesReferencia}
+                </p>
+
+                {/* Composição visual do saldo */}
+                <div className="mt-5 pt-4 border-t border-white/10 flex flex-wrap items-center gap-2 text-xs text-gray-400">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-black/35 border border-white/10">
+                        Bruta{' '}
+                        <strong className="text-white font-mono tabular-nums">
+                            {formatarMoeda(comissao.valorBrutoComissao)}
+                        </strong>
+                    </span>
+
+                    {temSaldoAnterior && (
+                        <>
+                            <span className="text-gray-500 font-bold">{saldoAnterior >= 0 ? '+' : '−'}</span>
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-black/35 border border-white/10">
+                                Anterior{' '}
+                                <strong className="text-amber-300 font-mono tabular-nums">
+                                    {formatarMoeda(Math.abs(saldoAnterior))}
+                                </strong>
+                            </span>
+                        </>
+                    )}
+
+                    <span className="text-gray-500 font-bold">−</span>
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-black/35 border border-white/10">
+                        Adiant.{' '}
+                        <strong className="text-amber-400 font-mono tabular-nums">
+                            {formatarMoeda(comissao.valorAdiantado)}
+                        </strong>
+                    </span>
+
+                    <span className="text-gray-500 font-bold">−</span>
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-black/35 border border-white/10">
+                        Já pago{' '}
+                        <strong className="text-emerald-400 font-mono tabular-nums">
+                            {formatarMoeda(valorQuitado)}
+                        </strong>
+                    </span>
+                </div>
+            </div>
+
+            {/* Grid de 5 KPIs (2 colunas no celular com Faturamento em destaque, 5 no desktop) */}
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+                <div className="col-span-2 lg:col-span-1 bg-black/45 border border-white/10 hover:border-cyber-gold/35 rounded-xl p-4 transition-colors">
+                    <div className="flex items-center justify-between mb-2.5">
+                        <span className="text-xs font-medium text-gray-400">Faturamento Mensal</span>
+                        <span className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 text-cyber-gold flex items-center justify-center">
+                            <TrendingUp className="w-4 h-4" />
+                        </span>
+                    </div>
+                    <div className="text-lg sm:text-xl font-bold text-white font-mono tabular-nums">
+                        {formatarMoeda(comissao.faturamentoMensal)}
+                    </div>
+                    <div className="text-[11px] text-gray-500 mt-1">Base para cálculo da faixa</div>
+                </div>
+
+                <div className="bg-black/45 border border-white/10 hover:border-cyber-gold/35 rounded-xl p-4 transition-colors">
+                    <div className="flex items-center justify-between mb-2.5">
+                        <span className="text-xs font-medium text-gray-400">Taxa Aplicada</span>
+                        <span className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 text-cyber-gold flex items-center justify-center">
+                            <Percent className="w-4 h-4" />
+                        </span>
+                    </div>
+                    <div className="text-lg sm:text-xl font-bold text-white font-mono tabular-nums">
+                        {formatarPorcentagem(comissao.porcentagemComissao)}
+                    </div>
+                    <div className="text-[11px] text-gray-500 mt-1 truncate">
+                        {comissao.faixaComissao || 'Faixa ativa'}
                     </div>
                 </div>
 
-                <div className="p-8 relative">
-                    {/* Saldo Anterior (Carryover) */}
-                    {temSaldoAnterior && (
-                        <div className="mb-6 p-4 border border-amber-500/30 bg-amber-500/5 flex items-center gap-3">
-                            <AlertTriangle className="w-5 h-5 text-amber-400" />
-                            <div>
-                                <span className="hud-label text-amber-400/80">SALDO_ANTERIOR (CARRYOVER)</span>
-                                <p className="text-lg font-black text-amber-400 italic tabular-nums">
-                                    {formatarMoeda(comissao.saldoAnterior || 0)}
-                                </p>
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-12">
-                        {[
-                            { label: 'FATUR_GERAL', value: formatarMoeda(comissao.faturamentoMensal), icon: TrendingUp },
-                            { label: 'TAXA_RENDIM', value: formatarPorcentagem(comissao.porcentagemComissao), icon: Percent },
-                            { label: 'ALOC_BRUTA', value: formatarMoeda(comissao.valorBrutoComissao), icon: ReceiptText },
-                            { label: 'SAQUE_PRÉVIO', value: formatarMoeda(comissao.valorAdiantado), icon: Landmark },
-                            { label: 'JÁ_PAGO', value: formatarMoeda(comissao.valorQuitado || 0), icon: CheckCircle2 },
-                        ].map((stat, idx) => (
-                            <div key={idx} className="p-6 bg-black/60 border border-cyber-gold/10 hover:border-cyber-gold/40 transition-all relative overflow-hidden group/item">
-                                <div className="absolute top-0 left-0 w-1.5 h-1.5 border-t border-l border-cyber-gold"></div>
-                                <stat.icon className="w-4 h-4 text-cyber-gold/20 mb-4 group-hover/item:text-cyber-gold transition-colors" />
-                                <span className="hud-label text-[7px]">{stat.label}</span>
-                                <p className="text-xl font-black text-cyber-gold/80 italic tracking-tighter tabular-nums mt-1">
-                                    {stat.value}
-                                </p>
-                                <div className="absolute bottom-0 right-0 w-8 h-8 opacity-[0.03] text-[6px] font-mono text-cyber-gold">
-                                    [FLUXO_DADOS_{idx}]
-                                </div>
-                            </div>
-                        ))}
+                <div className="bg-black/45 border border-white/10 hover:border-cyber-gold/35 rounded-xl p-4 transition-colors">
+                    <div className="flex items-center justify-between mb-2.5">
+                        <span className="text-xs font-medium text-gray-400">Comissão Bruta</span>
+                        <span className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 text-cyber-gold flex items-center justify-center">
+                            <ReceiptText className="w-4 h-4" />
+                        </span>
                     </div>
-
-                    <div className={`p-10 border ${isPositivo ? 'border-cyber-gold shadow-[inset_0_0_30px_rgba(212,175,55,0.1)]' : 'border-cyber-error shadow-[inset_0_0_30px_rgba(255,45,85,0.1)]'
-                        } flex flex-col sm:flex-row items-center justify-between gap-6 relative overflow-hidden bg-black/80`}>
-
-                        <div className="absolute inset-0 pointer-events-none">
-                            <div className="absolute top-0 left-0 w-full h-px bg-white/5"></div>
-                            <div className="absolute bottom-0 left-0 w-full h-px bg-white/5"></div>
-                        </div>
-
-                        <div className="relative z-10">
-                            <div className="flex items-center gap-2 mb-2">
-                                <div className={`w-2 h-2 rounded-full ${isPositivo ? 'bg-cyber-gold animate-pulse' : 'bg-cyber-error animate-ping'}`}></div>
-                                <span className={`hud-label mb-0 ${isPositivo ? 'text-cyber-gold/60' : 'text-cyber-error/60'}`}>LIQUIDAÇÃO_LÍQUIDA_A_PAGAR</span>
-                            </div>
-                            <p className={`text-7xl font-black tracking-tighter italic ${isPositivo ? 'text-cyber-gold italic-shadow' : 'text-cyber-error'}`}>
-                                {formatarMoeda(comissao.saldoAReceber)}
-                            </p>
-                            {comissao.quitado && comissao.dataQuitacao && (
-                                <p className="text-xs font-mono text-green-400/60 mt-2">
-                                    Quitado em: {new Date(comissao.dataQuitacao).toLocaleDateString('pt-BR')}
-                                </p>
-                            )}
-                        </div>
-
-                        <div className="flex flex-col gap-4 items-center max-w-[240px]">
-                            <div className={`p-6 border-2 ${isPositivo ? 'border-cyber-gold/40 text-cyber-gold' : 'border-cyber-error/40 text-cyber-error'} bg-black/40 relative z-10 overflow-hidden`}>
-                                <ArrowUpRight className={`w-12 h-12 ${!isPositivo && 'rotate-90'}`} />
-                                <div className="absolute -bottom-1 -right-1 text-[6px] font-mono opacity-40">MOVE_0x1</div>
-                            </div>
-
-                            {/* Área de Ações */}
-                            {isAdmin && comissao.id && (
-                                <div className="flex flex-col gap-3 w-full">
-                                    <button
-                                        onClick={handleGerarPagamento}
-                                        disabled={isGerandoPagamento || !!comissao.quitado || comissao.saldoAReceber <= 0}
-                                        className="hud-button text-[10px] py-3 bg-blue-500/20 border-blue-500/40 text-blue-400 hover:bg-blue-500/30 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2 w-full transition-all"
-                                        title={comissao.quitado ? "Já quitado" : comissao.saldoAReceber <= 0 ? "Saldo insuficiente" : "Gerar conta no financeiro"}
-                                    >
-                                        {isGerandoPagamento ? '...' : <><ReceiptText className="w-3 h-3" /> GERAR PAGAMENTO FINANCEIRO</>}
-                                    </button>
-
-                                    <button
-                                        onClick={handleQuitar}
-                                        disabled={isQuitando || !!comissao.quitado || comissao.saldoAReceber <= 0}
-                                        className="hud-button text-[10px] py-2 bg-green-500/10 border-green-500/20 text-green-600 hover:bg-green-500/20 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2 w-full transition-all"
-                                        title="Baixa a comissão e lança o pagamento no caixa (Status: PAGO)"
-                                    >
-                                        {isQuitando ? '...' : <><Check className="w-3 h-3" /> QUITAR E LANÇAR NO CAIXA</>}
-                                    </button>
-
-                                    {(!!comissao.quitado || comissao.saldoAReceber <= 0) && (
-                                        <p className="text-[9px] font-mono text-center text-cyber-gold/40 mt-1">
-                                            {!!comissao.quitado ? '[STATUS: JÁ QUITADO]' : '[SALDO INSUFICIENTE]'}
-                                        </p>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="absolute -bottom-6 -right-6 text-9xl font-black opacity-[0.02] select-none pointer-events-none italic">
-                            OROBOROS
-                        </div>
+                    <div className="text-lg sm:text-xl font-bold text-white font-mono tabular-nums">
+                        {formatarMoeda(comissao.valorBrutoComissao)}
                     </div>
+                    <div className="text-[11px] text-gray-500 mt-1">Antes de descontos</div>
+                </div>
+
+                <div className="bg-black/45 border border-white/10 hover:border-amber-500/35 rounded-xl p-4 transition-colors">
+                    <div className="flex items-center justify-between mb-2.5">
+                        <span className="text-xs font-medium text-gray-400">Adiantamentos</span>
+                        <span className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center">
+                            <Wallet className="w-4 h-4" />
+                        </span>
+                    </div>
+                    <div className="text-lg sm:text-xl font-bold text-amber-400 font-mono tabular-nums">
+                        {formatarMoeda(comissao.valorAdiantado)}
+                    </div>
+                    <div className="text-[11px] text-gray-500 mt-1">Vales / saques prévios</div>
+                </div>
+
+                <div className="bg-black/45 border border-white/10 hover:border-emerald-500/35 rounded-xl p-4 transition-colors">
+                    <div className="flex items-center justify-between mb-2.5">
+                        <span className="text-xs font-medium text-gray-400">Já Pago</span>
+                        <span className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                            <CheckCircle2 className="w-4 h-4" />
+                        </span>
+                    </div>
+                    <div className="text-lg sm:text-xl font-bold text-emerald-400 font-mono tabular-nums">
+                        {formatarMoeda(valorQuitado)}
+                    </div>
+                    <div className="text-[11px] text-gray-500 mt-1">Quitado no período</div>
                 </div>
             </div>
         </div>
