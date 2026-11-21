@@ -26,6 +26,23 @@ export const osService = {
         return response.data;
     },
 
+    listClientesPaginado: async (
+        page: number,
+        size: number,
+        filtros?: ClienteFiltros
+    ): Promise<PageResponse<Cliente>> => {
+        const params = new URLSearchParams();
+        params.append('page', String(page));
+        params.append('size', String(size));
+        if (filtros) {
+            Object.entries(filtros).forEach(([key, value]) => {
+                if (value) params.append(key, String(value));
+            });
+        }
+        const response = await api.get<PageResponse<Cliente>>(`/clientes/paginado?${params.toString()}`);
+        return response.data;
+    },
+
     updateCliente: async ({ id, data }: { id: number; data: ClienteRequest }): Promise<Cliente> => {
         const response = await api.put<Cliente>(`/clientes/${id}`, data);
         return response.data;
@@ -77,6 +94,11 @@ export const osService = {
             if (filters.atrasado) params.append('atrasado', 'true');
         }
         const response = await api.get<PageResponse<OrdemServico>>(`/ordens-servico/grid`, { params });
+        return response.data;
+    },
+
+    getOSContadores: async (): Promise<{ emAndamento: number; atrasadas: number }> => {
+        const response = await api.get<{ emAndamento: number; atrasadas: number }>('/ordens-servico/contadores');
         return response.data;
     },
 
@@ -183,6 +205,24 @@ export const osService = {
     // --- PDF ---
     // Path builders for PDF downloads (used by usePdfDownload hook)
     getRelatorioPdfPath: (ano: number, mes: number) => `relatorios/${ano}/${mes}/pdf`,
-    getOSPdfPath: (osId: number) => `ordens-servico/${osId}/pdf`,
+    getOSPdfPath: (osId: number, options?: { imagens?: boolean; ocultarTotal?: boolean }) => {
+        const params = new URLSearchParams();
+        if (options?.imagens) params.set('imagens', 'true');
+        if (options?.ocultarTotal) params.set('ocultarTotal', 'true');
+        const qs = params.toString();
+        return qs ? `ordens-servico/${osId}/pdf?${qs}` : `ordens-servico/${osId}/pdf`;
+    },
+    getOSPdfFilename: (osId: number, dataOs?: string) => {
+        const match = dataOs?.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (match) {
+            const [, yyyy, mm, dd] = match;
+            return `${osId}-martelinho-de-ouro-${dd}-${mm}-${yyyy.slice(-2)}.pdf`;
+        }
+        const hoje = new Date();
+        const dd = String(hoje.getDate()).padStart(2, '0');
+        const mm = String(hoje.getMonth() + 1).padStart(2, '0');
+        const aa = String(hoje.getFullYear()).slice(-2);
+        return `${osId}-martelinho-de-ouro-${dd}-${mm}-${aa}.pdf`;
+    },
     getApiBaseUrl: () => API_BASE_URL
 };

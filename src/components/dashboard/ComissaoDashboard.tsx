@@ -1,7 +1,42 @@
 import React, { useState } from 'react';
+import {
+    ChevronLeft,
+    ChevronRight,
+    RefreshCw,
+    DollarSign,
+    ShieldOff,
+    AlertCircle,
+    CalendarX2,
+} from 'lucide-react';
 import { useComissao } from '../../hooks/useComissao';
 import { usePermission } from '../../hooks/usePermission';
 import { ComissaoCard } from './ComissaoCard';
+
+const MESES_PT = [
+    'Janeiro',
+    'Fevereiro',
+    'Março',
+    'Abril',
+    'Maio',
+    'Junho',
+    'Julho',
+    'Agosto',
+    'Setembro',
+    'Outubro',
+    'Novembro',
+    'Dezembro',
+];
+
+interface ApiErrorLike {
+    message?: string;
+    response?: {
+        status?: number;
+        data?: {
+            message?: string;
+            mensagem?: string;
+        };
+    };
+}
 
 export const ComissaoDashboard: React.FC = () => {
     const today = new Date();
@@ -9,135 +44,145 @@ export const ComissaoDashboard: React.FC = () => {
     const [mes, setMes] = useState(today.getMonth() + 1);
 
     const { user } = usePermission();
-    // Default to true if undefined (legacy users), only strictly false disables it
     const participaComissao = user?.participaComissao !== false;
 
     const { comissao, isLoading, error, forceSync } = useComissao(ano, mes, {
-        enabled: participaComissao
+        enabled: participaComissao,
     });
+
+    const apiError = error as ApiErrorLike | null;
+    const isNaoHabilitado = !participaComissao || apiError?.response?.status === 400;
+    const periodoLabel = `${MESES_PT[mes - 1]} ${ano}`;
 
     const handlePreviousMonth = () => {
         if (mes === 1) {
             setMes(12);
-            setAno(ano - 1);
+            setAno((prev) => prev - 1);
         } else {
-            setMes(mes - 1);
+            setMes((prev) => prev - 1);
         }
     };
 
     const handleNextMonth = () => {
         if (mes === 12) {
             setMes(1);
-            setAno(ano + 1);
+            setAno((prev) => prev + 1);
         } else {
-            setMes(mes + 1);
+            setMes((prev) => prev + 1);
         }
     };
 
     const handleRefresh = async () => {
-        console.log('🔄 Forçando sincronização...');
         await forceSync();
     };
 
     return (
-        <div className="space-y-12 view-transition">
-            <div className="flex flex-col md:flex-row justify-between items-end gap-6 pb-8 border-b border-cyber-gold/20 relative">
-                <div className="absolute bottom-0 left-0 w-24 h-px bg-cyber-gold shadow-[0_0_10px_var(--color-cyber-gold)]"></div>
-
-                <div className="relative">
-                    <span className="hud-label">SISTEMA_UNIFICADO_V2</span>
-                    <h1 className="text-5xl font-black text-cyber-gold tracking-tighter italic glitch italic-shadow uppercase">
-                        Painel Unificado
-                    </h1>
+        <div className="space-y-6">
+            {/* Cabeçalho */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-cyber-gold/10 border border-cyber-gold/35 text-cyber-gold flex items-center justify-center shrink-0">
+                        <DollarSign className="w-5 h-5" />
+                    </div>
+                    <div>
+                        <h1 className="text-xl sm:text-2xl font-orbitron font-bold text-white tracking-wide">
+                            Minha Comissão
+                        </h1>
+                        <p className="text-xs sm:text-sm text-gray-400 hidden sm:block">
+                            Faturamento do período, faixa aplicada, adiantamentos e saldo líquido.
+                        </p>
+                    </div>
                 </div>
 
-                <div className="flex flex-wrap gap-4 items-center justify-center">
-                    <div className="flex items-center bg-black/40 border border-cyber-gold/20 p-1 relative">
-                        <div className="absolute -top-1 -left-1 w-2 h-2 border-t border-l border-cyber-gold/40"></div>
+                {/* Controles de período */}
+                <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-between flex-1 sm:flex-initial bg-black/50 border border-white/10 rounded-xl p-1">
                         <button
+                            type="button"
                             onClick={handlePreviousMonth}
-                            className="w-12 h-12 flex items-center justify-center hover:bg-cyber-gold hover:text-black transition-all font-black text-xl italic"
+                            aria-label="Mês anterior"
+                            className="w-9 h-9 rounded-lg flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
                         >
-                            {'<'}
+                            <ChevronLeft className="w-4 h-4" />
                         </button>
-                        <div className="px-8 flex flex-col items-center">
-                            <span className="text-[8px] font-mono text-cyber-gold/40 tracking-[0.3em]">SINCR_PERÍODO</span>
-                            <span className="text-lg font-black italic tracking-widest text-cyber-gold" id="mes-ano-label">
-                                {mes.toString().padStart(2, '0')}.{ano}
-                            </span>
-                        </div>
-                        <button
-                            onClick={handleNextMonth}
-                            className="w-12 h-12 flex items-center justify-center hover:bg-cyber-gold hover:text-black transition-all font-black text-xl italic"
+                        <span
+                            id="mes-ano-label"
+                            className="px-3 sm:px-5 text-sm font-oxanium font-bold text-white text-center min-w-[140px]"
                         >
-                            {'>'}
+                            {periodoLabel}
+                        </span>
+                        <button
+                            type="button"
+                            onClick={handleNextMonth}
+                            aria-label="Próximo mês"
+                            className="w-9 h-9 rounded-lg flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
+                        >
+                            <ChevronRight className="w-4 h-4" />
                         </button>
                     </div>
 
-
                     <button
+                        type="button"
                         onClick={handleRefresh}
                         disabled={isLoading || !participaComissao}
-                        className="hud-button text-xs flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Atualizar cálculo"
+                        className="h-11 px-3.5 rounded-xl bg-black/50 border border-white/10 text-gray-300 hover:text-cyber-gold hover:border-cyber-gold/40 disabled:opacity-40 disabled:cursor-not-allowed transition-colors inline-flex items-center gap-2 text-xs font-oxanium font-semibold"
                     >
-                        {isLoading ? (
-                            <><span className="animate-spin text-lg">⚙</span> SINCRONIZANDO...</>
-                        ) : (
-                            <><span className="text-lg">↺</span> FORÇAR_SINCR</>
-                        )}
+                        <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin text-cyber-gold' : ''}`} />
+                        <span className="hidden sm:inline">Atualizar</span>
                     </button>
                 </div>
             </div>
 
-            {!participaComissao || (error as any)?.response?.status === 400 ? (
-                <div className="hud-card top-brackets bottom-brackets p-16 text-center group bg-black/40 border border-slate-800">
-                    <div className="static-overlay opacity-5"></div>
-                    <div className="mb-6 flex justify-center">
-                        <div className="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center border border-slate-700">
-                            <span className="text-3xl grayscale opacity-50">🛡️</span>
-                        </div>
+            {/* Estados */}
+            {isNaoHabilitado ? (
+                <div className="rounded-2xl bg-black/45 border border-white/10 p-8 sm:p-12 text-center">
+                    <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 text-gray-400 flex items-center justify-center mx-auto mb-4">
+                        <ShieldOff className="w-6 h-6" />
                     </div>
-                    <h2 className="text-xl font-bold text-slate-200 tracking-wider mb-2">
-                        Módulo de Comissão Não Habilitado
+                    <h2 className="text-base sm:text-lg font-orbitron font-bold text-white mb-2">
+                        Comissionamento não habilitado para este perfil
                     </h2>
-                    <p className="text-slate-500 font-mono text-xs max-w-lg mx-auto leading-relaxed uppercase tracking-wide">
-                        Seu perfil administrativo está configurado apenas para gestão (Valor Base do Repasse) e não participa do cálculo automático de repasses sobre vendas.
-                    </p>
-                    <div className="w-12 h-px bg-cyber-gold/20 mx-auto my-6"></div>
-                    <p className="text-[10px] text-slate-600 uppercase">
-                        STATUS: OPERACIONAL • SEM_COMISSIONAMENTO
+                    <p className="text-xs sm:text-sm text-gray-400 max-w-md mx-auto leading-relaxed">
+                        Seu perfil está configurado apenas para gestão e não participa do cálculo automático de
+                        comissões sobre vendas.
                     </p>
                 </div>
             ) : error ? (
-                <div className="border border-cyber-error bg-cyber-error/5 p-6 text-cyber-error text-xs font-mono relative overflow-hidden hud-card bottom-brackets">
-                    <div className="static-overlay opacity-10"></div>
-                    <p className="font-black uppercase mb-2 flex items-center gap-2">
-                        <span className="w-2 h-2 bg-cyber-error rounded-full animate-ping"></span>
-                        Exceção_Crítica_Detectada
-                    </p>
-                    <p className="opacity-80">STDOUT: {(error as any)?.message || 'Erro desconhecido'}</p>
+                <div className="rounded-2xl bg-red-500/10 border border-red-500/35 p-5 flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+                    <div>
+                        <h3 className="text-sm font-bold text-red-300">Não foi possível carregar sua comissão</h3>
+                        <p className="text-xs text-red-200/80 mt-1">
+                            {apiError?.response?.data?.message ||
+                                apiError?.response?.data?.mensagem ||
+                                apiError?.message ||
+                                'Tente atualizar novamente em alguns instantes.'}
+                        </p>
+                    </div>
                 </div>
             ) : isLoading ? (
-                <div className="flex flex-col items-center justify-center py-32 gap-6">
-                    <div className="w-64 h-1 bg-cyber-gold/5 relative overflow-hidden border border-cyber-gold/10">
-                        <div className="absolute top-0 left-0 h-full bg-cyber-gold w-1/4 animate-[loading_2s_infinite_linear] shadow-[0_0_15px_var(--color-cyber-gold)]"></div>
-                    </div>
-                    <div className="text-center">
-                        <p className="text-xs font-mono text-cyber-gold animate-pulse tracking-[0.4em] uppercase">Descriptografando fluxos seguros...</p>
-                        <p className="text-[8px] font-mono text-cyber-gold/30 mt-2 uppercase">Conectando ao OROBOROS_OS High_Tier_Relay</p>
+                <div className="space-y-4">
+                    <div className="h-44 rounded-2xl bg-black/40 border border-white/10 animate-pulse" />
+                    <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+                        {[1, 2, 3, 4, 5].map((i) => (
+                            <div
+                                key={i}
+                                className="h-24 rounded-xl bg-black/40 border border-white/10 animate-pulse"
+                            />
+                        ))}
                     </div>
                 </div>
             ) : comissao ? (
-                <ComissaoCard comissao={comissao} onQuitado={handleRefresh} />
+                <ComissaoCard comissao={comissao} periodoLabel={periodoLabel} />
             ) : (
-                <div className="hud-card top-brackets bottom-brackets p-16 text-center group bg-black/40">
-                    <div className="static-overlay opacity-5"></div>
-                    <p className="text-cyber-gold/60 font-mono text-sm uppercase tracking-[0.3em] font-black italic mb-4">
-                        Exceção_Dados_Nulos: Nenhuma sequência encontrada
-                    </p>
-                    <div className="w-12 h-px bg-cyber-gold/20 mx-auto mb-6"></div>
-                    <p className="text-[10px] text-cyber-gold/40 font-mono uppercase tracking-widest max-w-xs mx-auto leading-relaxed">
-                        Pacotes de dados esperados ausentes para o período especificado. Inicialize os módulos de faturamento/crédito para prosseguir.
+                <div className="rounded-2xl bg-black/40 border border-white/10 p-10 text-center">
+                    <CalendarX2 className="w-8 h-8 text-gray-500 mx-auto mb-3" />
+                    <h3 className="text-sm sm:text-base font-bold text-white">
+                        Nenhuma comissão calculada em {periodoLabel}
+                    </h3>
+                    <p className="text-xs sm:text-sm text-gray-400 mt-1 max-w-sm mx-auto">
+                        Assim que houver ordens de serviço faturadas nesse período, o demonstrativo aparecerá aqui.
                     </p>
                 </div>
             )}
