@@ -286,3 +286,58 @@ body::after {
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+/* Ouroboros lightweight GPU animations */
+.oro-ring-outer {
+  transform-origin: 100px 100px;
+  animation: oroSpin 32s linear infinite;
+}
+
+.oro-serpent {
+  transform-origin: 100px 100px;
+  animation: oroSpin 20s linear infinite;
+}
+
+.oro-ring-inner {
+  transform-origin: 100px 100px;
+  animation: oroSpinReverse 26s linear infinite;
+}
+
+.oro-energy {
+  stroke-dasharray: 64 380;
+  animation: oroFlow 4.2s linear infinite;
+}
+
+.oro-glow {
+  animation: oroPulse 5.5s ease-in-out infinite;
+}
+
+@keyframes oroSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes oroSpinReverse {
+  from { transform: rotate(360deg); }
+  to { transform: rotate(0deg); }
+}
+
+@keyframes oroFlow {
+  from { stroke-dashoffset: 444; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes oroPulse {
+  0%, 100% { opacity: 0.65; transform: scale(0.96); }
+  50% { opacity: 1; transform: scale(1.04); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .oro-ring-outer,
+  .oro-serpent,
+  .oro-ring-inner,
+  .oro-energy,
+  .oro-glow {
+    animation: none;
+  }
+}

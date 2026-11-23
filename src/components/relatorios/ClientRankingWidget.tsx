@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Filter, Trophy, Users } from 'lucide-react';
 import { relatorioService } from '../../services/relatorioService';
-import { Users, Filter } from 'lucide-react';
 import { formatarMoeda } from '../../utils/formatters';
+import { calcularParticipacaoCliente } from '../../utils/rankingClientesUtils';
 
 interface ClientRankingWidgetProps {
     selectedAno?: number;
@@ -12,132 +13,161 @@ interface ClientRankingWidgetProps {
 export const ClientRankingWidget: React.FC<ClientRankingWidgetProps> = ({ selectedAno, selectedMes }) => {
     const [filterType, setFilterType] = useState<'MONTHLY' | 'ANNUAL'>('MONTHLY');
 
-    // Setup date defaults
     const currentDate = new Date();
     const targetYear = selectedAno || currentDate.getFullYear();
-    const targetMonth = selectedMes || (currentDate.getMonth() + 1);
+    const targetMonth = selectedMes || currentDate.getMonth() + 1;
 
-    const { data: rankingData, isLoading } = useQuery({
-        queryKey: ['ranking-clientes', filterType, targetYear, targetMonth],
-        queryFn: () => relatorioService.getRankingClientes(
-            targetYear,
-            filterType === 'MONTHLY' ? targetMonth : undefined
-        ),
+    const { data: rankingData = [], isLoading } = useQuery({
+        queryKey: ['ranking-clientes', filterType, targetYear, filterType === 'MONTHLY' ? targetMonth : null],
+        queryFn: () =>
+            relatorioService.getRankingClientes(
+                targetYear,
+                filterType === 'MONTHLY' ? targetMonth : undefined
+            ),
     });
 
-    return (
-        <div className="bg-black/40 border border-white/10 p-6 rounded-lg relative overflow-hidden h-full flex flex-col">
-            <div className="absolute top-0 right-0 w-1 h-full bg-cyber-gold"></div>
+    const totalValor = useMemo(
+        () => rankingData.reduce((acc, c) => acc + (c.valorTotal || 0), 0),
+        [rankingData]
+    );
 
+    return (
+        <div className="bg-[#0f1117] border border-white/10 p-5 sm:p-6 rounded-2xl h-full flex flex-col">
             {/* Header with Filter Toggle */}
-            <div className="flex justify-between items-start mb-6">
+            <div className="flex items-start justify-between gap-3 mb-5">
                 <div>
-                    <h3 className="text-gray-400 text-sm font-oxanium uppercase tracking-wide flex items-center gap-2">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center gap-2">
                         <Users className="w-4 h-4 text-cyber-gold" />
                         Ranking de Clientes
                     </h3>
-                    <div className="text-2xl text-white font-bold font-orbitron mt-1">
-                        TOP CLIENTES
+                    <div className="text-lg font-extrabold text-white mt-0.5">
+                        Top Clientes
                     </div>
                 </div>
 
-                <div className="flex bg-black/50 rounded-lg p-1 border border-white/10">
+                <div className="inline-flex bg-[#090b10] rounded-lg p-1 border border-white/10">
                     <button
+                        type="button"
                         onClick={() => setFilterType('MONTHLY')}
-                        className={`px-3 py-1 rounded text-xs font-oxanium transition-all ${filterType === 'MONTHLY'
-                            ? 'bg-cyber-gold text-black font-bold'
-                            : 'text-gray-400 hover:text-white'
-                            }`}
+                        className={`px-3 py-1 rounded-md text-xs font-bold transition-colors cursor-pointer ${
+                            filterType === 'MONTHLY'
+                                ? 'bg-cyber-gold text-black'
+                                : 'text-gray-400 hover:text-white'
+                        }`}
                     >
-                        MÊS
+                        Mês
                     </button>
                     <button
+                        type="button"
                         onClick={() => setFilterType('ANNUAL')}
-                        className={`px-3 py-1 rounded text-xs font-oxanium transition-all ${filterType === 'ANNUAL'
-                            ? 'bg-cyber-gold text-black font-bold'
-                            : 'text-gray-400 hover:text-white'
-                            }`}
+                        className={`px-3 py-1 rounded-md text-xs font-bold transition-colors cursor-pointer ${
+                            filterType === 'ANNUAL'
+                                ? 'bg-cyber-gold text-black'
+                                : 'text-gray-400 hover:text-white'
+                        }`}
                     >
-                        ANO
+                        Ano
                     </button>
                 </div>
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-auto custom-scrollbar">
+            <div className="flex-1 overflow-auto">
                 {isLoading ? (
-                    <div className="space-y-3 animate-pulse">
+                    <div className="space-y-2.5 animate-pulse">
                         {[1, 2, 3, 4, 5].map((i) => (
-                            <div key={i} className="h-12 bg-white/5 rounded border border-white/5 mx-1" />
+                            <div key={i} className="h-11 bg-white/5 rounded-lg" />
                         ))}
                     </div>
-                ) : !rankingData || rankingData.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-48 text-gray-500">
-                        <Filter className="w-8 h-8 mb-2 opacity-50" />
-                        <span className="text-sm font-oxanium">Nenhum dado encontrado</span>
+                ) : rankingData.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-44 text-gray-500">
+                        <Filter className="w-7 h-7 mb-2 opacity-50" />
+                        <span className="text-xs">Nenhum cliente faturado no período</span>
                     </div>
                 ) : (
                     <table className="w-full text-left border-collapse">
                         <thead>
-                            <tr className="text-xs text-gray-400 font-oxanium border-b border-white/10">
-                                <th className="py-2 pl-2">RANK</th>
-                                <th className="py-2">CLIENTE</th>
-                                <th className="py-2 text-center">OS</th>
-                                <th className="py-2 text-right pr-2">TOTAL</th>
+                            <tr className="text-[11px] text-gray-400 uppercase tracking-wider border-b border-white/10">
+                                <th className="py-2 pl-2 font-bold">Pos.</th>
+                                <th className="py-2 font-bold">Cliente</th>
+                                <th className="py-2 text-center font-bold">OS</th>
+                                <th className="py-2 text-right pr-2 font-bold">Total</th>
                             </tr>
                         </thead>
-                        <tbody className="text-sm">
-                            {rankingData.map((cliente, index) => (
-                                <tr
-                                    key={cliente.clienteId}
-                                    className={`
-                                        border-b border-white/5 hover:bg-white/5 transition-colors
-                                        ${index === 0 ? 'bg-cyber-gold/10' : ''}
-                                        ${index === 1 ? 'bg-white/5' : ''}
-                                        ${index === 2 ? 'bg-white/5' : ''}
-                                    `}
-                                >
-                                    <td className="py-3 pl-2 font-mono text-gray-500 w-12">
-                                        {index + 1 < 4 ? (
-                                            <span className={`
-                                                w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold
-                                                ${index === 0 ? 'bg-yellow-500 text-black' : ''}
-                                                ${index === 1 ? 'bg-gray-400 text-black' : ''}
-                                                ${index === 2 ? 'bg-orange-700 text-white' : ''}
-                                             `}>
-                                                {index + 1}
-                                            </span>
-                                        ) : (
-                                            <span className="pl-1">#{index + 1}</span>
-                                        )}
-                                    </td>
-                                    <td className="py-3 font-medium text-white truncate max-w-[150px]" title={cliente.nomeFantasia}>
-                                        {cliente.nomeFantasia}
-                                        {index === 0 && <span className="ml-2 text-xs text-yellow-500 font-oxanium">👑 VIP</span>}
-                                    </td>
-                                    <td className="py-3 text-center text-gray-400 font-mono">
-                                        {cliente.quantidadeOS}
-                                    </td>
-                                    <td className="py-3 text-right pr-2 font-orbitron text-cyber-gold">
-                                        {formatarMoeda(cliente.valorTotal)}
-                                    </td>
-                                </tr>
-                            ))}
+                        <tbody className="text-sm divide-y divide-white/5">
+                            {rankingData.map((cliente, index) => {
+                                const share = calcularParticipacaoCliente(cliente.valorTotal, totalValor);
+                                return (
+                                    <tr
+                                        key={cliente.clienteId}
+                                        className={`hover:bg-white/[0.03] transition-colors ${
+                                            index === 0 ? 'bg-cyber-gold/[0.07]' : ''
+                                        }`}
+                                    >
+                                        <td className="py-2.5 pl-2 w-11">
+                                            {index < 3 ? (
+                                                <span
+                                                    className={`w-6 h-6 inline-flex items-center justify-center rounded-full text-[11px] font-extrabold ${
+                                                        index === 0
+                                                            ? 'bg-cyber-gold text-black'
+                                                            : index === 1
+                                                                ? 'bg-slate-300 text-black'
+                                                                : 'bg-amber-600 text-white'
+                                                    }`}
+                                                >
+                                                    {index + 1}
+                                                </span>
+                                            ) : (
+                                                <span className="text-xs text-gray-500 font-bold pl-1">
+                                                    #{index + 1}
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td className="py-2.5 pr-2">
+                                            <div className="flex items-center gap-1.5 min-w-0">
+                                                <span
+                                                    className="font-semibold text-white truncate max-w-[160px]"
+                                                    title={cliente.nomeFantasia}
+                                                >
+                                                    {cliente.nomeFantasia}
+                                                </span>
+                                                {index === 0 && (
+                                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-cyber-gold/20 text-cyber-gold text-[9px] font-extrabold uppercase shrink-0">
+                                                        <Trophy size={9} />
+                                                        Top 1
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="w-24 h-1 bg-white/10 rounded-full overflow-hidden mt-1">
+                                                <div
+                                                    className="h-full bg-cyber-gold rounded-full"
+                                                    style={{ width: `${share}%` }}
+                                                />
+                                            </div>
+                                        </td>
+                                        <td className="py-2.5 text-center text-gray-400 text-xs tabular-nums">
+                                            {cliente.quantidadeOS}
+                                        </td>
+                                        <td className="py-2.5 text-right pr-2 font-bold text-cyber-gold tabular-nums text-xs sm:text-sm">
+                                            {formatarMoeda(cliente.valorTotal)}
+                                        </td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </table>
                 )}
             </div>
 
             {/* Footer Info */}
-            <div className="mt-4 pt-2 border-t border-white/10 flex justify-between items-center text-xs text-gray-500 font-oxanium">
+            <div className="mt-4 pt-3 border-t border-white/10 flex justify-between items-center text-[11px] text-gray-500">
                 <span>
                     {filterType === 'MONTHLY'
                         ? `Referência: ${targetMonth.toString().padStart(2, '0')}/${targetYear}`
-                        : `Referência: Ano ${targetYear}`
-                    }
+                        : `Referência: Ano ${targetYear}`}
                 </span>
                 <span>
-                    {rankingData ? rankingData.length : 0} clientes
+                    {rankingData.length} {rankingData.length === 1 ? 'cliente' : 'clientes'}
                 </span>
             </div>
         </div>

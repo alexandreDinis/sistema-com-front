@@ -55,6 +55,38 @@ export const financeiroService = {
         return response.data;
     },
 
+    obterDetalhesFatura: async (faturaId: number): Promise<{
+        faturaId: number;
+        descricao: string;
+        mesReferencia: string;
+        status: string;
+        valorFatura: number;
+        dataFechamento?: string;
+        dataVencimento?: string;
+        dataPagamento?: string;
+        cartaoId: number;
+        cartaoNome: string;
+        diaFechamento: number;
+        diaVencimento: number;
+        cicloInicio: string;
+        cicloFim: string;
+        totalDespesasCiclo: number;
+        totalJaPagoCiclo: number;
+        despesas: Array<{
+            id: number;
+            dataDespesa: string;
+            descricao: string;
+            categoria?: string;
+            valor: number;
+            parcelado?: boolean;
+            parcelaAtual?: number;
+            numeroParcelas?: number;
+        }>;
+    }> => {
+        const response = await api.get(`/financeiro/faturas/${faturaId}/detalhes`);
+        return response.data;
+    },
+
     listarEstornosPaginado: async (page = 0, size = 15): Promise<PageResponse<EstornoContaPagar>> => {
         const response = await api.get('/financeiro/estornos/paginado', { params: { page, size } });
         return response.data;

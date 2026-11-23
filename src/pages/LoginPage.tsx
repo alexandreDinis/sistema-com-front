@@ -1,28 +1,55 @@
 import React from 'react';
 import { LoginForm } from '../components/auth/LoginForm';
+import { OuroborosEmblem } from '../components/auth/OuroborosEmblem';
 
 export const LoginPage: React.FC = () => {
     return (
-        <div className="min-h-screen w-full flex items-center justify-center relative overflow-hidden bg-cyber-bg">
-            {/* Background Effects */}
-            <div className="absolute inset-0 pointer-events-none">
-                <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,var(--tw-gradient-stops))] from-cyber-gold/5 via-transparent to-transparent opacity-50"></div>
-                <div className="absolute bottom-0 left-0 w-full h-1/2 bg-linear-to-t from-black via-black/80 to-transparent"></div>
+        <div
+            className="min-h-screen w-full flex items-center justify-center p-4 sm:p-6 relative overflow-hidden"
+            style={{
+                background:
+                    'radial-gradient(circle at 22% 50%, rgba(212, 175, 55, 0.09), transparent 48%), radial-gradient(circle at 82% 20%, rgba(212, 175, 55, 0.05), transparent 40%), #07090e',
+            }}
+        >
+            <div className="w-full max-w-[1080px] lg:min-h-[600px] lg:bg-[#0b0e16]/85 lg:border lg:border-white/10 lg:rounded-3xl lg:shadow-2xl lg:shadow-black/70 overflow-hidden grid grid-cols-1 lg:grid-cols-12 relative z-10">
+                {/* Brand Panel (Desktop) */}
+                <section className="hidden lg:flex lg:col-span-6 flex-col justify-between p-10 border-r border-white/10 bg-gradient-to-br from-cyber-gold/[0.06] via-[#0b0e16]/90 to-[#07090e]">
+                    <div>
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-widest text-cyber-gold bg-cyber-gold/10 border border-cyber-gold/30">
+                            Oroboros Technology
+                        </span>
+                    </div>
 
-                {/* Grid Lines */}
-                <div className="absolute inset-0" style={{ backgroundImage: 'linear-gradient(rgba(212, 175, 55, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(212, 175, 55, 0.03) 1px, transparent 1px)', backgroundSize: '50px 50px' }}></div>
-            </div>
+                    <div className="flex flex-col items-center text-center my-6">
+                        <OuroborosEmblem size="lg" />
+                        <h1 className="mt-5 text-2xl font-orbitron font-extrabold tracking-wider text-white">
+                            MARTELINHO <span className="text-cyber-gold">DIGITAL</span>
+                        </h1>
+                        <p className="mt-2.5 text-sm text-gray-400 max-w-sm leading-relaxed">
+                            Ciclo contínuo de gestão operacional, comissões e controle financeiro em um só lugar.
+                        </p>
+                    </div>
 
-            {/* Corner Decorators */}
-            <div className="fixed top-0 left-0 w-64 h-64 border-l-2 border-t-2 border-cyber-gold/10 rounded-tl-3xl pointer-events-none"></div>
-            <div className="fixed bottom-0 right-0 w-64 h-64 border-r-2 border-b-2 border-cyber-gold/10 rounded-br-3xl pointer-events-none"></div>
+                    <div className="grid grid-cols-3 gap-2.5">
+                        <div className="bg-white/[0.025] border border-white/10 rounded-xl p-3">
+                            <strong className="block text-xs text-white font-bold">Operação & OS</strong>
+                            <span className="text-[11px] text-gray-500">Fluxo completo</span>
+                        </div>
+                        <div className="bg-white/[0.025] border border-white/10 rounded-xl p-3">
+                            <strong className="block text-xs text-white font-bold">Financeiro</strong>
+                            <span className="text-[11px] text-gray-500">Caixa, DRE e faturas</span>
+                        </div>
+                        <div className="bg-white/[0.025] border border-white/10 rounded-xl p-3">
+                            <strong className="block text-xs text-white font-bold">Comissões</strong>
+                            <span className="text-[11px] text-gray-500">Cálculo transparente</span>
+                        </div>
+                    </div>
+                </section>
 
-            <div className="relative z-10 w-full px-4 flex justify-center">
-                <LoginForm />
-            </div>
-
-            <div className="fixed bottom-4 text-[9px] text-cyber-gold/20 font-mono tracking-[0.5em] uppercase text-center w-full">
-                SISTEMA KERNEL: ONLINE // ENCRYPTION: AES-256
+                {/* Form Panel */}
+                <section className="lg:col-span-6 flex items-center justify-center p-2 sm:p-6 lg:p-10">
+                    <LoginForm />
+                </section>
             </div>
         </div>
     );
