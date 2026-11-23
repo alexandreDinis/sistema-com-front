@@ -120,6 +120,20 @@ export const financeiroService = {
         return response.data;
     },
 
+    getFluxoCaixaDetalhado: async (mes: number, ano: number): Promise<{
+        periodo: string;
+        saldoInicial: number;
+        totalEntradas: number;
+        totalSaidas: number;
+        resultadoPeriodo: number;
+        saldoFinal: number;
+        entradas: Array<{ data: string; descricao: string; categoria: string; valor: number }>;
+        saidas: Array<{ data: string; descricao: string; categoria: string; valor: number }>;
+    }> => {
+        const response = await api.get(`/relatorios/contabeis/fluxo-caixa/dados?mes=${mes}&ano=${ano}`);
+        return response.data;
+    },
+
     // ========================================
     // RESUMO FINANCEIRO
     // ========================================
@@ -173,6 +187,11 @@ export const financeiroService = {
 
     listarImpostosPagos: async (): Promise<ContaPagar[]> => {
         const response = await api.get('/financeiro/imposto-pago');
+        return response.data;
+    },
+
+    cancelarImpostoPago: async (id: number): Promise<ContaPagar> => {
+        const response = await api.patch(`/financeiro/imposto-pago/${id}/cancelar`);
         return response.data;
     },
 
