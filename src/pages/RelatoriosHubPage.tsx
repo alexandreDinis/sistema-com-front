@@ -1,279 +1,301 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FileText, TrendingUp, DollarSign, Calendar, BarChart3, PieChart, ArrowLeft, Users, CreditCard, Receipt } from 'lucide-react';
+import {
+    ArrowRight,
+    ChevronRight,
+    CreditCard,
+    DollarSign,
+    FileText,
+    Receipt,
+    Search,
+    TrendingUp,
+    Users,
+    Wallet,
+    type LucideIcon,
+} from 'lucide-react';
 import { usePermission } from '../hooks/usePermission';
 import { Feature } from '../types/features';
+import {
+    filterRelatoriosCatalog,
+    type RelatorioCatalogItem,
+    type RelatorioCategoria,
+    type RelatorioCategoriaFilter,
+} from '../utils/relatoriosHubUtils';
+
+interface ReportDefinition extends RelatorioCatalogItem {
+    icon: LucideIcon;
+    feature: Feature;
+}
+
+const REPORT_GROUPS: Array<{ key: RelatorioCategoria; label: string }> = [
+    { key: 'GERENCIAL', label: 'Resultados & Desempenho (Gerencial)' },
+    { key: 'FISCAL', label: 'Fiscal & Tributário' },
+    { key: 'CAIXA', label: 'Caixa & Obrigações Financeiras' },
+];
+
+const CATEGORY_TABS: Array<{ id: RelatorioCategoriaFilter; label: string }> = [
+    { id: 'ALL', label: 'Todos' },
+    { id: 'GERENCIAL', label: 'Gerencial' },
+    { id: 'FISCAL', label: 'Fiscal' },
+    { id: 'CAIXA', label: 'Caixa & Financeiro' },
+];
+
+const ALL_REPORTS: ReportDefinition[] = [
+    {
+        id: 'financeiro',
+        category: 'GERENCIAL',
+        title: 'DRE Mensal',
+        description: 'Faturamento bruto, despesas por categoria, impostos, comissões e lucro líquido do mês.',
+        keywords: ['dre', 'financeiro', 'lucro', 'despesas', 'mensal'],
+        icon: DollarSign,
+        path: '/relatorio/financeiro',
+        feature: Feature.RELATORIO_FINANCEIRO_VIEW,
+        hasPdf: true,
+    },
+    {
+        id: 'anual',
+        category: 'GERENCIAL',
+        title: 'Visão Anual (YoY)',
+        description: 'Evolução dos 12 meses e comparativo ano contra ano de faturamento e resultados.',
+        keywords: ['anual', 'yoy', 'dre', 'crescimento', 'comparativo'],
+        icon: TrendingUp,
+        path: '/relatorio/anual',
+        feature: Feature.RELATORIO_FINANCEIRO_VIEW,
+        hasPdf: true,
+    },
+    {
+        id: 'ranking',
+        category: 'GERENCIAL',
+        title: 'Ranking de Clientes (Curva ABC)',
+        description: 'Top clientes por faturamento e volume de ordens de serviço no mês ou ano.',
+        keywords: ['ranking', 'clientes', 'abc', 'curva', 'top'],
+        icon: Users,
+        path: '/relatorio/ranking',
+        feature: Feature.RELATORIO_FINANCEIRO_VIEW,
+    },
+    {
+        id: 'receita-caixa',
+        category: 'FISCAL',
+        title: 'Receita por Caixa',
+        description: 'Recebimentos efetivados no período — base para apuração do Simples Nacional.',
+        keywords: ['caixa', 'fiscal', 'simples', 'receita', 'faturamento'],
+        icon: Receipt,
+        path: '/relatorio/receita-caixa',
+        feature: Feature.RELATORIO_FINANCEIRO_VIEW,
+    },
+    {
+        id: 'imposto-pago',
+        category: 'FISCAL',
+        title: 'Pagamento de DAS (Impostos)',
+        description: 'Registro e acompanhamento de guias de impostos pagos (não afeta o DRE).',
+        keywords: ['das', 'imposto', 'tributo', 'guia', 'fiscal'],
+        icon: FileText,
+        path: '/financeiro/imposto-pago',
+        feature: Feature.ADMIN_CONFIG,
+    },
+    {
+        id: 'fluxo-caixa',
+        category: 'CAIXA',
+        title: 'Fluxo de Caixa Mensal',
+        description: 'Entradas, saídas e saldo do mês com saldo inicial acumulado.',
+        keywords: ['fluxo', 'caixa', 'entradas', 'saidas', 'saldo'],
+        icon: TrendingUp,
+        path: '/financeiro/fluxo-caixa',
+        feature: Feature.RELATORIO_FINANCEIRO_VIEW,
+        hasPdf: true,
+    },
+    {
+        id: 'contas-pagar',
+        category: 'CAIXA',
+        title: 'Contas a Pagar',
+        description: 'Acompanhamento de obrigações pagas, pendentes e vencidas no período.',
+        keywords: ['contas', 'pagar', 'vencidas', 'despesas', 'obrigacoes'],
+        icon: CreditCard,
+        path: '/financeiro/contas-pagar',
+        feature: Feature.RELATORIO_FINANCEIRO_VIEW,
+    },
+    {
+        id: 'faturas-cartao',
+        category: 'CAIXA',
+        title: 'Faturas de Cartão Corporativo',
+        description: 'Faturas consolidadas de cartões corporativos por mês de fechamento.',
+        keywords: ['fatura', 'cartao', 'credito', 'corporativo'],
+        icon: CreditCard,
+        path: '/financeiro/faturas',
+        feature: Feature.RELATORIO_FINANCEIRO_VIEW,
+    },
+    {
+        id: 'distribuicao-lucros',
+        category: 'CAIXA',
+        title: 'Distribuição de Lucros',
+        description: 'Histórico e comprovantes de retiradas de lucro mensal e acumulado.',
+        keywords: ['lucro', 'distribuicao', 'retirada', 'socios'],
+        icon: Wallet,
+        path: '/financeiro/distribuicao-lucros',
+        feature: Feature.ADMIN_CONFIG,
+    },
+];
 
 export const RelatoriosHubPage: React.FC = () => {
     const { hasFeature } = usePermission();
+    const [searchTerm, setSearchTerm] = useState('');
+    const [categoryFilter, setCategoryFilter] = useState<RelatorioCategoriaFilter>('ALL');
 
-    const reports = [
-        {
-            id: 'financeiro',
-            title: 'Relatório Financeiro Mensal (DRE)',
-            description: 'Visão consolidada do mês: faturamento, despesas, comissões e lucro líquido',
-            icon: DollarSign,
-            path: '/relatorio/financeiro',
-            color: 'cyan',
-            feature: Feature.RELATORIO_FINANCEIRO_VIEW,
-        },
-        {
-            id: 'anual',
-            title: 'Relatório Anual YoY (DRE Anual)',
-            description: 'Comparação Year-over-Year com 12 meses de faturamento e crescimento anual',
-            icon: TrendingUp,
-            path: '/relatorio/anual',
-            color: 'gold',
-            feature: Feature.RELATORIO_FINANCEIRO_VIEW,
-        },
-        {
-            id: 'comissoes',
-            title: 'Relatório de Comissões (Analítico)',
-            description: 'Análise detalhada de comissões por período e usuário',
-            icon: BarChart3,
-            path: '/relatorio/comissoes',
-            color: 'green',
-            feature: Feature.RELATORIO_COMISSAO_VIEW,
-            comingSoon: true,
-        },
-        {
-            id: 'desempenho',
-            title: 'Relatório de Desempenho (KPIs)',
-            description: 'Métricas operacionais: OS finalizadas, veículos atendidos, produtividade',
-            icon: Calendar,
-            path: '/relatorio/desempenho',
-            color: 'purple',
-            feature: Feature.DASHBOARD_VIEW,
-            comingSoon: true,
-        },
-        {
-            id: 'ranking',
-            title: 'Ranking de Clientes (Curva ABC)',
-            description: 'Top clientes por faturamento e volume de OS (Mensal/Anual)',
-            icon: Users,
-            path: '/relatorio/ranking',
-            color: 'gold',
-            feature: Feature.RELATORIO_FINANCEIRO_VIEW,
-        },
-        {
-            id: 'faturas-cartao',
-            title: 'Faturas de Cartão (Contas a Pagar)',
-            description: 'Visualize e pague faturas de cartões corporativos consolidadas por mês',
-            icon: CreditCard,
-            path: '/financeiro/faturas',
-            color: 'cyan',
-            feature: Feature.RELATORIO_FINANCEIRO_VIEW,
-        },
-        {
-            id: 'receita-caixa',
-            title: 'Receita por Caixa (Faturamento Fiscal)',
-            description: 'Relatório de recebimentos por caixa - Base para cálculo do Simples Nacional',
-            icon: Receipt,
-            path: '/relatorio/receita-caixa',
-            color: 'green',
-            feature: Feature.RELATORIO_FINANCEIRO_VIEW,
-        },
-        {
-            id: 'imposto-pago',
-            title: 'Pagamento de DAS (Impostos)',
-            description: 'Registre pagamentos de impostos (IMPOSTO_PAGO) - Não afeta DRE',
-            icon: Receipt,
-            path: '/financeiro/imposto-pago',
-            color: 'purple',
-            feature: Feature.ADMIN_CONFIG,
-        },
-        {
-            id: 'fluxo-caixa',
-            title: 'Relatório De Fluxo de Caixa (Mensal)',
-            description: 'Entradas, Saídas e Saldo (com Saldo Inicial Acumulado)',
-            icon: TrendingUp,
-            path: '/financeiro/fluxo-caixa',
-            color: 'gold',
-            feature: Feature.RELATORIO_FINANCEIRO_VIEW,
-        },
-        {
-            id: 'contas-pagar',
-            title: 'Relatório de Contas a Pagar',
-            description: 'Contas pagas, pendentes e vencidas no período',
-            icon: CreditCard,
-            path: '/financeiro/contas-pagar',
-            color: 'red', // Using red/error color theme manually or mapping to purple/custom
-            feature: Feature.RELATORIO_FINANCEIRO_VIEW,
-        },
-        {
-            id: 'distribuicao-lucros',
-            title: 'Relatório de Distribuição de Lucros',
-            description: 'Comprovante de retiradas de lucro (Mensal/Acumulado)',
-            icon: DollarSign,
-            path: '/financeiro/distribuicao-lucros',
-            color: 'green',
-            feature: Feature.RELATORIO_FINANCEIRO_VIEW,
-        },
-    ];
+    const permittedReports = useMemo(
+        () => ALL_REPORTS.filter((report) => hasFeature(report.feature)),
+        [hasFeature]
+    );
 
-    const availableReports = reports.filter(report => hasFeature(report.feature));
+    const filteredReports = useMemo(
+        () => filterRelatoriosCatalog(permittedReports, searchTerm, categoryFilter),
+        [permittedReports, searchTerm, categoryFilter]
+    );
 
-    const getColorClasses = (color: string, isComingSoon: boolean) => {
-        if (isComingSoon) {
-            return {
-                border: 'border-gray-500/30',
-                bg: 'bg-gray-500/5',
-                icon: 'text-gray-500',
-                title: 'text-gray-400',
-                hover: 'hover:bg-gray-500/10',
-            };
-        }
-
-        const colors: Record<string, any> = {
-            cyan: {
-                border: 'border-cyan-500/30',
-                bg: 'bg-cyan-500/5',
-                icon: 'text-cyan-400',
-                title: 'text-cyan-300',
-                hover: 'hover:bg-cyan-500/10 hover:border-cyan-500/50',
-            },
-            gold: {
-                border: 'border-cyber-gold/30',
-                bg: 'bg-cyber-gold/5',
-                icon: 'text-cyber-gold',
-                title: 'text-cyber-gold',
-                hover: 'hover:bg-cyber-gold/10 hover:border-cyber-gold/50',
-            },
-            green: {
-                border: 'border-green-500/30',
-                bg: 'bg-green-500/5',
-                icon: 'text-green-400',
-                title: 'text-green-300',
-                hover: 'hover:bg-green-500/10 hover:border-green-500/50',
-            },
-            purple: {
-                border: 'border-purple-500/30',
-                bg: 'bg-purple-500/5',
-                icon: 'text-purple-400',
-                title: 'text-purple-300',
-                hover: 'hover:bg-purple-500/10 hover:border-purple-500/50',
-            },
-            red: {
-                border: 'border-red-500/30',
-                bg: 'bg-red-500/5',
-                icon: 'text-red-400',
-                title: 'text-red-300',
-                hover: 'hover:bg-red-500/10 hover:border-red-500/50',
-            },
-        };
-        return colors[color] || colors.cyan;
-    };
+    const canViewDre = hasFeature(Feature.RELATORIO_FINANCEIRO_VIEW);
 
     return (
-        <div className="p-8 space-y-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 pb-24">
             {/* Header */}
-            <div>
-                <Link to="/" className="inline-flex items-center gap-2 text-cyber-gold/60 hover:text-cyber-gold transition-colors font-oxanium text-xs mb-4 uppercase tracking-wider">
-                    <ArrowLeft className="w-4 h-4" />
-                    Voltar para Dashboard
-                </Link>
-                <div className="flex items-center gap-3 mb-2">
-                    <FileText className="w-8 h-8 text-cyber-gold" />
-                    <h1 className="text-3xl font-orbitron text-white font-bold">
-                        Central de Relatórios (Contábil)
-                    </h1>
-                </div>
-                <p className="text-gray-400 text-sm ml-11">
-                    Acesse análises detalhadas e relatórios consolidados do sistema
+            <header className="pb-5 border-b border-white/10">
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
+                    Central de Relatórios
+                </h1>
+                <p className="text-sm text-zinc-400 mt-1">
+                    Análises gerenciais, apuração fiscal e controle de caixa organizados por área.
                 </p>
-            </div>
+            </header>
 
-            {/* Reports Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {availableReports.map((report) => {
-                    const colors = getColorClasses(report.color, report.comingSoon || false);
-                    const Icon = report.icon;
-                    const isClickable = !report.comingSoon;
-
-                    const CardContent = (
-                        <>
-                            <div className={`p-6 rounded-lg border ${colors.border} ${colors.bg} ${isClickable ? colors.hover : ''} transition-all relative overflow-hidden ${!isClickable ? 'opacity-60' : ''}`}>
-                                {/* Background Pattern */}
-                                <div className="absolute inset-0 opacity-5">
-                                    <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent" />
-                                </div>
-
-                                {/* Coming Soon Badge */}
-                                {report.comingSoon && (
-                                    <div className="absolute top-3 right-3 bg-gray-600/50 text-gray-300 text-[10px] font-bold px-2 py-1 rounded font-oxanium">
-                                        EM BREVE
-                                    </div>
-                                )}
-
-                                {/* Icon */}
-                                <div className={`${colors.icon} mb-4 relative z-10`}>
-                                    <Icon className="w-12 h-12" />
-                                </div>
-
-                                {/* Title */}
-                                <h3 className={`text-lg font-bold font-oxanium ${colors.title} mb-2 relative z-10`}>
-                                    {report.title}
-                                </h3>
-
-                                {/* Description */}
-                                <p className="text-sm text-gray-400 relative z-10">
-                                    {report.description}
-                                </p>
-
-                                {/* Action Indicator */}
-                                {!report.comingSoon && (
-                                    <div className="mt-4 flex items-center gap-2 text-xs text-gray-500 font-oxanium relative z-10">
-                                        <span>ACESSAR</span>
-                                        <span>→</span>
-                                    </div>
-                                )}
-                            </div>
-                        </>
-                    );
-
-                    return isClickable ? (
-                        <Link key={report.id} to={report.path} className="block">
-                            {CardContent}
-                        </Link>
-                    ) : (
-                        <div key={report.id} className="cursor-not-allowed">
-                            {CardContent}
+            {/* Featured DRE Hero */}
+            {canViewDre && (
+                <section className="rounded-2xl bg-gradient-to-br from-cyber-gold/15 via-zinc-900/90 to-zinc-900/95 border border-cyber-gold/35 p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-start gap-4 min-w-0">
+                        <div className="w-12 h-12 rounded-xl bg-cyber-gold text-black flex items-center justify-center shrink-0 shadow-lg shadow-cyber-gold/20">
+                            <DollarSign className="w-6 h-6" />
                         </div>
-                    );
-                })}
-            </div>
+                        <div className="min-w-0">
+                            <span className="text-[11px] font-bold uppercase tracking-wider text-cyber-gold">
+                                Relatório Principal
+                            </span>
+                            <h2 className="text-lg sm:text-xl font-bold text-white mt-0.5">
+                                DRE Mensal Consolidado
+                            </h2>
+                            <p className="text-xs sm:text-sm text-zinc-300 mt-1 leading-relaxed">
+                                Visão completa de faturamento bruto, despesas por categoria, impostos, comissões e resultado líquido com exportação em PDF.
+                            </p>
+                        </div>
+                    </div>
 
-            {/* Stats Footer */}
-            <div className="mt-12 p-6 bg-black/40 border border-white/10 rounded-lg">
-                <div className="flex items-center gap-3 mb-3">
-                    <PieChart className="w-5 h-5 text-cyber-gold" />
-                    <h3 className="text-sm font-bold text-cyber-gold font-oxanium uppercase tracking-wide">
-                        Recursos Disponíveis
-                    </h3>
+                    <Link
+                        to="/relatorio/financeiro"
+                        className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-cyber-gold hover:bg-amber-400 text-black font-semibold text-sm transition-all shadow-lg shadow-cyber-gold/15 shrink-0 whitespace-nowrap"
+                    >
+                        <span>Abrir DRE Mensal</span>
+                        <ArrowRight className="w-4 h-4" />
+                    </Link>
+                </section>
+            )}
+
+            {/* Search & Category Filter */}
+            <section className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="relative flex-1">
+                    <Search className="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                        type="text"
+                        placeholder="Buscar relatório (ex: DRE, caixa, DAS, ranking, cartão)..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full rounded-xl bg-zinc-900/80 border border-white/10 pl-10 pr-4 py-2.5 text-sm text-white placeholder-zinc-500 focus:border-cyber-gold focus:outline-none transition-colors"
+                    />
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                    <div>
-                        <div className="text-2xl font-bold text-white font-orbitron">{availableReports.length}</div>
-                        <div className="text-xs text-gray-500 uppercase">Total de Relatórios</div>
-                    </div>
-                    <div>
-                        <div className="text-2xl font-bold text-cyan-400 font-orbitron">
-                            {availableReports.filter(r => !r.comingSoon).length}
-                        </div>
-                        <div className="text-xs text-gray-500 uppercase">Disponíveis Agora</div>
-                    </div>
-                    <div>
-                        <div className="text-2xl font-bold text-gray-500 font-orbitron">
-                            {availableReports.filter(r => r.comingSoon).length}
-                        </div>
-                        <div className="text-xs text-gray-500 uppercase">Em Desenvolvimento</div>
-                    </div>
-                    <div>
-                        <div className="text-2xl font-bold text-cyber-gold font-orbitron">PDF</div>
-                        <div className="text-xs text-gray-500 uppercase">Formato de Export</div>
-                    </div>
+
+                <div className="inline-flex items-center p-1 rounded-xl bg-zinc-900/80 border border-white/10 gap-1 overflow-x-auto max-w-full self-start sm:self-auto">
+                    {CATEGORY_TABS.map((tab) => {
+                        const active = categoryFilter === tab.id;
+                        return (
+                            <button
+                                key={tab.id}
+                                type="button"
+                                onClick={() => setCategoryFilter(tab.id)}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+                                    active
+                                        ? 'bg-cyber-gold/15 text-cyber-gold border border-cyber-gold/30'
+                                        : 'text-zinc-400 hover:text-white border border-transparent'
+                                }`}
+                            >
+                                {tab.label}
+                            </button>
+                        );
+                    })}
                 </div>
-            </div>
+            </section>
+
+            {/* Grouped Catalog */}
+            {filteredReports.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-white/10 bg-zinc-900/40 py-14 px-4 text-center">
+                    <div className="w-12 h-12 rounded-full bg-white/5 text-zinc-500 flex items-center justify-center mx-auto mb-3">
+                        <FileText className="w-5 h-5" />
+                    </div>
+                    <p className="text-sm font-medium text-zinc-300">
+                        Nenhum relatório encontrado para esta busca
+                    </p>
+                    <p className="text-xs text-zinc-500 mt-1">
+                        Tente outro termo ou selecione a aba Todos.
+                    </p>
+                </div>
+            ) : (
+                <div className="space-y-8">
+                    {REPORT_GROUPS.map((group) => {
+                        const items = filteredReports.filter((r) => r.category === group.key);
+                        if (items.length === 0) return null;
+
+                        return (
+                            <section key={group.key} className="space-y-3">
+                                <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-400">
+                                    {group.label}
+                                </h2>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {items.map((report) => {
+                                        const Icon = report.icon;
+                                        return (
+                                            <Link
+                                                key={report.id}
+                                                to={report.path}
+                                                className="group rounded-2xl bg-zinc-900/75 border border-white/10 hover:border-cyber-gold/40 p-5 flex flex-col justify-between gap-4 transition-all min-w-0 overflow-hidden"
+                                            >
+                                                <div>
+                                                    <div className="flex items-center justify-between gap-3">
+                                                        <div className="w-10 h-10 rounded-xl bg-cyber-gold/10 border border-cyber-gold/20 text-cyber-gold flex items-center justify-center shrink-0">
+                                                            <Icon className="w-5 h-5" />
+                                                        </div>
+                                                        {report.hasPdf && (
+                                                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-white/5 border border-white/10 text-zinc-300">
+                                                                PDF
+                                                            </span>
+                                                        )}
+                                                    </div>
+
+                                                    <h3 className="text-base font-semibold text-white mt-4 group-hover:text-cyber-gold transition-colors">
+                                                        {report.title}
+                                                    </h3>
+                                                    <p className="text-xs text-zinc-400 mt-1.5 leading-relaxed">
+                                                        {report.description}
+                                                    </p>
+                                                </div>
+
+                                                <div className="pt-3 border-t border-white/5 flex items-center justify-between text-xs font-semibold text-cyber-gold">
+                                                    <span>Abrir relatório</span>
+                                                    <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                                                </div>
+                                            </Link>
+                                        );
+                                    })}
+                                </div>
+                            </section>
+                        );
+                    })}
+                </div>
+            )}
         </div>
     );
 };

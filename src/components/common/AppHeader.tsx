@@ -69,7 +69,7 @@ export const AppHeader: React.FC = () => {
             items: [
                 { label: 'Administração', path: '/settings', feature: Feature.ADMIN_CONFIG },
                 { label: 'Tributação', path: '/settings/tributacao', feature: Feature.ADMIN_CONFIG },
-                { label: 'Prestadores', path: '/settings/prestadores', feature: Feature.ADMIN_CONFIG },
+                { label: 'Terceirizados', path: '/settings/prestadores', feature: Feature.ADMIN_CONFIG },
             ],
         },
     ];

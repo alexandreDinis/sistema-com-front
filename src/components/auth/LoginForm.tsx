@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { AlertCircle, Eye, EyeOff, Loader2, Lock, Mail } from 'lucide-react';
 import { authService } from '../../services/authService';
 import { useForm } from '../../hooks/useForm';
-import { AlertCircle, Lock, Mail, Eye, EyeOff } from 'lucide-react';
+import { OuroborosEmblem } from './OuroborosEmblem';
+import { mapearErroLogin, normalizarEmailLogin, resolverDestinoPosLogin } from '../../utils/loginUtils';
 
 export const LoginForm: React.FC = () => {
     const navigate = useNavigate();
@@ -12,177 +14,147 @@ export const LoginForm: React.FC = () => {
 
     const { values, handleChange } = useForm({
         email: '',
-        password: ''
+        password: '',
     });
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (isLoading) return;
+
         setIsLoading(true);
         setError(null);
 
         try {
-            const user = await authService.login(values);
-
-            // Normalize role checking (Backend might send ROLE_SUPER_ADMIN)
-            const role = user.role ? user.role.toUpperCase().replace('ROLE_', '') : '';
-
-            console.log('[LoginForm] Login Success:', { role, empresa: user.empresa, user });
-
-            // 🔐 Force password change if required
-            if (user.mustChangePassword) {
-                console.log('[LoginForm] 🔑 Senha temporária detectada -> /change-password');
-                navigate('/change-password');
-                return;
-            }
-
-            // =====================================================
-            // 🔐 LOGIN REDIRECT LOGIC - TWO WORLDS (REGRA DE OURO)
-            // =====================================================
-            // Platform Admin -> /platform/dashboard
-            // ONLY if: role is SUPER_ADMIN AND empresa is null (global context)
-            // Everyone else -> / (tenant app context)
-            // =====================================================
-
-            // Explicit Tenant Roles
-            const isTenantUser = role === 'ADMIN_EMPRESA' || role === 'USER' || role === 'TECNICO' || role === 'FINANCEIRO';
-
-            // Platform Roles
-            const isPlatformSuperUser = (role === 'SUPER_ADMIN' || role === 'ADMIN_PLATAFORMA') && !user.empresa;
-            const isResellerInfo = role === 'ADMIN_LICENCA' || role === 'REVENDEDOR';
-
-            if (isTenantUser) {
-                console.log('[LoginForm] ✅ Tenant User detected -> / (app)');
-                navigate('/');
-            } else if (isPlatformSuperUser || isResellerInfo) {
-                console.log('[LoginForm] ✅ Platform Admin detected -> /platform/dashboard');
-                navigate('/platform/dashboard');
-            } else {
-                // Fallback (e.g. if role is unknown, default to app)
-                console.warn('[LoginForm] ⚠️ Unknown role, defaulting to App:', role);
-                navigate('/');
-            }
-        } catch (err: any) {
-            if (err.response) {
-                if (err.response.status === 401) {
-                    setError('Credenciais inválidas. ACESSO NEGADO.');
-                } else if (err.response.status === 429) {
-                    setError('Muitas tentativas. SISTEMA BLOQUEADO TEMPORARIAMENTE. Tente novamente em 15min.');
-                } else if (err.response.status === 403) {
-                    setError('Conta inativa ou sem permissão de acesso.');
-                } else {
-                    setError('Erro de conexão com o servidor de autenticação.');
-                }
-            } else {
-                setError('Falha na comunicação com o NÚCLEO.');
-            }
+            const user = await authService.login({
+                email: normalizarEmailLogin(values.email),
+                password: values.password,
+            });
+            const destino = resolverDestinoPosLogin(user);
+            navigate(destino);
+        } catch (err: unknown) {
+            setError(mapearErroLogin(err));
         } finally {
             setIsLoading(false);
         }
     };
 
     return (
-        <div className="hud-card top-brackets bottom-brackets p-8 max-w-sm w-full relative overflow-hidden bg-black/80 backdrop-blur-sm border border-cyber-gold/20 shadow-[0_0_50px_rgba(0,0,0,0.8)]">
-            <div className="static-overlay opacity-10"></div>
+        <div className="w-full max-w-[400px] bg-[#0f121a]/95 border border-cyber-gold/25 rounded-2xl p-6 sm:p-8 shadow-2xl shadow-black/70 backdrop-blur-md">
+            {/* Compact Ouroboros Header on Mobile/Tablet */}
+            <div className="lg:hidden flex flex-col items-center text-center mb-6">
+                <OuroborosEmblem size="sm" />
+                <span className="mt-2.5 text-sm font-orbitron font-bold tracking-wider text-white">
+                    MARTELINHO <span className="text-cyber-gold">DIGITAL</span>
+                </span>
+            </div>
 
-            <div className="text-center mb-10">
-                <div className="inline-block relative">
-                    <h2 className="text-3xl font-black text-cyber-gold tracking-widest uppercase italic italic-shadow glitch">
-                        GESTÃO DE SERVIÇOS
-                    </h2>
-                    <span className="absolute -bottom-2 right-0 text-[8px] font-mono text-cyber-gold/40">V2.4.0 // SECURE_ACCESS</span>
-                </div>
+            <div className="mb-6 text-center lg:text-left">
+                <h2 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight normal-case">
+                    Entrar na Conta
+                </h2>
+                <p className="text-xs sm:text-sm text-gray-400 mt-1">
+                    Informe suas credenciais para acessar o sistema.
+                </p>
             </div>
 
             {error && (
-                <div className="border border-cyber-error bg-cyber-error/10 p-4 mb-6 relative overflow-hidden group">
-                    <div className="absolute top-0 left-0 w-1 h-full bg-cyber-error animate-pulse"></div>
-                    <div className="flex items-start gap-3">
-                        <AlertCircle className="w-5 h-5 text-cyber-error shrink-0" />
-                        <div>
-                            <span className="font-black text-cyber-error uppercase block text-[9px] mb-1">ERRO_CRÍTICO_0x99:</span>
-                            <span className="text-cyber-error/80 text-xs font-mono">{error}</span>
-                        </div>
-                    </div>
+                <div
+                    role="alert"
+                    className="flex items-start gap-2.5 bg-red-500/10 border border-red-500/35 text-red-300 px-3.5 py-3 rounded-xl text-xs mb-5 leading-relaxed"
+                >
+                    <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                    <span>{error}</span>
                 </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="relative group/field">
-                    <label className="hud-label group-focus-within/field:text-cyber-gold transition-colors flex items-center gap-2">
-                        <Mail className="w-3 h-3" />
-                        ID_USUÁRIO
+            <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                    <label
+                        htmlFor="login-email"
+                        className="block text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1.5"
+                    >
+                        E-mail
                     </label>
                     <div className="relative">
+                        <Mail className="w-4 h-4 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                         <input
+                            id="login-email"
                             type="email"
                             name="email"
+                            autoComplete="email"
                             value={values.email}
-                            onChange={handleChange}
-                            className="w-full bg-black/40 border border-cyber-gold/10 text-cyber-gold text-sm font-mono p-3 pl-4 outline-none focus:border-cyber-gold focus:shadow-[0_0_15px_rgba(212,175,55,0.1)] transition-all"
-                            placeholder="usuario@gestao.com"
+                            onChange={(e) => {
+                                handleChange(e);
+                                if (error) setError(null);
+                            }}
+                            className="w-full bg-[#090b10] border border-white/15 focus:border-cyber-gold focus:ring-2 focus:ring-cyber-gold/15 text-white text-sm pl-10 pr-4 py-2.5 rounded-xl outline-none transition-all placeholder:text-gray-600"
+                            placeholder="seu@email.com"
                             required
                         />
-                        <div className="absolute bottom-0 left-0 w-0 h-px bg-cyber-gold group-focus-within/field:w-full transition-all duration-500"></div>
                     </div>
                 </div>
 
-                <div className="relative group/field">
-                    <label className="hud-label group-focus-within/field:text-cyber-gold transition-colors flex items-center gap-2">
-                        <Lock className="w-3 h-3" />
-                        CHAVE_ACESSO
-                    </label>
+                <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                        <label
+                            htmlFor="login-password"
+                            className="block text-[11px] font-bold uppercase tracking-wider text-gray-400"
+                        >
+                            Senha
+                        </label>
+                        <Link
+                            to="/forgot-password"
+                            className="text-[11px] font-semibold text-cyber-gold hover:underline transition-colors"
+                        >
+                            Esqueci minha senha
+                        </Link>
+                    </div>
                     <div className="relative">
+                        <Lock className="w-4 h-4 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                         <input
+                            id="login-password"
                             type={showPassword ? 'text' : 'password'}
                             name="password"
+                            autoComplete="current-password"
                             value={values.password}
-                            onChange={handleChange}
-                            className="w-full bg-black/40 border border-cyber-gold/10 text-cyber-gold text-sm font-mono p-3 pl-4 pr-10 outline-none focus:border-cyber-gold focus:shadow-[0_0_15px_rgba(212,175,55,0.1)] transition-all"
-                            placeholder="••••••••"
+                            onChange={(e) => {
+                                handleChange(e);
+                                if (error) setError(null);
+                            }}
+                            className="w-full bg-[#090b10] border border-white/15 focus:border-cyber-gold focus:ring-2 focus:ring-cyber-gold/15 text-white text-sm pl-10 pr-11 py-2.5 rounded-xl outline-none transition-all placeholder:text-gray-600"
+                            placeholder="Digite sua senha"
                             required
                         />
                         <button
                             type="button"
-                            onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-cyber-gold/50 hover:text-cyber-gold transition-colors z-10"
+                            onClick={() => setShowPassword((prev) => !prev)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-cyber-gold transition-colors p-1 cursor-pointer"
+                            aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
                         >
                             {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
-                        <div className="absolute bottom-0 left-0 w-0 h-px bg-cyber-gold group-focus-within/field:w-full transition-all duration-500"></div>
                     </div>
                 </div>
 
-                <div className="pt-4">
-                    <button
-                        type="submit"
-                        disabled={isLoading}
-                        className="w-full hud-button group relative overflow-hidden"
-                    >
-                        {isLoading ? (
-                            <span className="animate-pulse">{`>>>`} AUTENTICANDO...</span>
-                        ) : (
-                            <span className="flex items-center justify-center gap-2">
-                                INICIAR_SESSÃO <span className="text-[9px] opacity-50 group-hover:translate-x-1 transition-transform">{`>>`}</span>
-                            </span>
-                        )}
-                    </button>
-
-                    <div className="text-center pt-4 space-y-2">
-                        <span className="text-[10px] text-cyber-gold/30 font-mono tracking-wider block cursor-not-allowed">
-                            REGISTRAR NOVO ACESSO (EM CONSTRUÇÃO)
-                        </span>
-                        <Link to="/forgot-password" className="text-[10px] text-cyber-gold/40 hover:text-cyber-gold font-mono hover:underline tracking-wider transition-colors block">
-                            ESQUECI MINHA SENHA
-                        </Link>
-                    </div>
-
-                    <p className="text-center mt-4 text-[9px] text-cyber-gold/20 font-mono">
-                        ACESSO RESTRITO A PESSOAL AUTORIZADO
-                        <br />
-                        IP LOGGED: {window.location.hostname}
-                    </p>
-                </div>
+                <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full mt-2 inline-flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-[#e2c055] to-cyber-gold text-[#090b10] text-sm font-extrabold tracking-wide hover:brightness-110 active:scale-[0.99] transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                    {isLoading ? (
+                        <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Entrando...
+                        </>
+                    ) : (
+                        'Entrar'
+                    )}
+                </button>
             </form>
+
+            <div className="mt-6 pt-4 border-t border-white/10 text-center text-[11px] text-gray-500">
+                Powered by <span className="text-cyber-gold font-semibold">Oroboros Technology</span> · Acesso protegido
+            </div>
         </div>
     );
 };

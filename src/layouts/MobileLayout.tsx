@@ -1,8 +1,8 @@
 import React from 'react';
 import { Outlet, useLocation, useNavigate, Link } from 'react-router-dom';
-import { Home, FileText, Users, TrendingDown, DollarSign, LogOut, Monitor } from 'lucide-react';
-import { authService } from '../services/authService';
+import { Home, FileText, Users, TrendingDown, DollarSign, Monitor } from 'lucide-react';
 import { ExpirationBanner } from '../components/common/ExpirationBanner';
+import { UserMenu } from '../components/common/UserMenu';
 import logo from '../assets/log.png';
 
 // Rotas permitidas no mobile (mesmo que no native app)
@@ -45,11 +45,6 @@ export const MobileLayout: React.FC = () => {
         return location.pathname.startsWith(path);
     };
 
-    const handleLogout = () => {
-        authService.logout();
-        navigate('/login');
-    };
-
     return (
         <div className="min-h-screen bg-cyber-bg flex flex-col selection:bg-cyber-gold/30 selection:text-white">
             <ExpirationBanner />
@@ -69,14 +64,9 @@ export const MobileLayout: React.FC = () => {
                     </span>
                 </Link>
 
-                <button
-                    type="button"
-                    onClick={handleLogout}
-                    className="p-2 rounded-xl bg-white/5 border border-white/10 text-red-400 hover:text-red-300 hover:bg-red-500/15 transition-colors shrink-0"
-                    aria-label="Sair"
-                >
-                    <LogOut size={18} />
-                </button>
+                <div className="shrink-0">
+                    <UserMenu />
+                </div>
             </header>
 
             {/* Conteúdo com margens laterais confortáveis */}
