@@ -1,107 +1,140 @@
-import React from 'react';
-import { Users, Shield, Calculator, Image, CreditCard } from 'lucide-react';
+import React, { useState } from 'react';
+import {
+    Calculator,
+    Check,
+    ChevronRight,
+    CreditCard,
+    Image,
+    Percent,
+    Shield,
+    Users,
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ModoComissaoConfig } from '../../components/settings/ModoComissaoConfig';
 import { LogoUploadConfig } from '../../components/settings/LogoUploadConfig';
 import { BillingConfig } from '../../components/settings/BillingConfig';
 
+type SettingsTab = 'dados' | 'logo' | 'comissao';
+
 export const CompanySettings: React.FC = () => {
     const navigate = useNavigate();
+    const [activeTab, setActiveTab] = useState<SettingsTab>('dados');
+
+    const quickLinks = [
+        {
+            title: 'Sua Equipe',
+            description: 'Prestadores, perfis e acessos',
+            icon: Users,
+            path: '/settings/team',
+        },
+        {
+            title: 'Plano & Assinatura',
+            description: 'Detalhes do plano e faturas',
+            icon: Shield,
+            path: '/settings/subscription',
+        },
+        {
+            title: 'Regras de Comissão',
+            description: 'Faixas e percentuais de repasse',
+            icon: Calculator,
+            path: '/settings/comissao',
+        },
+        {
+            title: 'Tributação',
+            description: 'Regime e alíquota de imposto',
+            icon: Percent,
+            path: '/settings/tributacao',
+        },
+    ];
+
+    const tabs: Array<{ id: SettingsTab; label: string; icon: React.ComponentType<{ className?: string }> }> = [
+        { id: 'dados', label: 'Dados & Cobrança', icon: CreditCard },
+        { id: 'logo', label: 'Identidade & Logo', icon: Image },
+        { id: 'comissao', label: 'Modo de Comissão', icon: Users },
+    ];
 
     return (
-        <div className="space-y-8">
-            <div className="border-b border-cyber-gold/20 pb-4">
-                <h1 className="text-3xl font-black text-cyber-gold tracking-tighter uppercase glitch">Configurações da Empresa</h1>
-                <p className="text-cyber-gold/60 font-mono text-sm mt-2">Gestão de Equipe, Assinatura e Comissões</p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {/* Gestão de Equipe */}
-                <section className="bg-black/40 border border-cyber-gold/30 p-6 relative group overflow-hidden">
-                    <div className="absolute top-0 left-0 w-1 h-full bg-cyber-gold opacity-50 group-hover:opacity-100 transition-opacity"></div>
-                    <div className="flex items-center gap-4 mb-6">
-                        <div className="p-3 bg-cyber-gold/10 rounded-lg border border-cyber-gold/30 text-cyber-gold">
-                            <Users size={24} />
-                        </div>
-                        <h2 className="text-xl font-bold text-cyber-gold uppercase">Sua Equipe</h2>
-                    </div>
-                    <p className="text-cyber-gold/50 text-sm mb-6">Adicione prestadores, defina perfis (Mecânico, Vendedor) e gerencie acessos.</p>
-                    <button
-                        onClick={() => navigate('/settings/team')}
-                        className="px-4 py-2 bg-cyber-gold/10 border border-cyber-gold text-cyber-gold hover:bg-cyber-gold hover:text-black transition-all font-bold uppercase text-xs tracking-wider cursor-pointer"
-                    >
-                        Gerenciar Prestadores
-                    </button>
-                </section>
-
-                {/* Assinatura */}
-                <section className="bg-black/40 border border-cyber-gold/30 p-6 relative group overflow-hidden">
-                    <div className="absolute top-0 left-0 w-1 h-full bg-cyber-gold opacity-50 group-hover:opacity-100 transition-opacity"></div>
-                    <div className="flex items-center gap-4 mb-6">
-                        <div className="p-3 bg-cyber-gold/10 rounded-lg border border-cyber-gold/30 text-cyber-gold">
-                            <Shield size={24} />
-                        </div>
-                        <h2 className="text-xl font-bold text-cyber-gold uppercase">Plano & Assinatura</h2>
-                    </div>
-                    <div className="mb-6">
-                        <div className="text-cyber-gold/40 text-xs uppercase mb-1">Plano Atual</div>
-                        <div className="text-2xl font-black text-cyber-gold">OURO <span className="text-xs align-top opacity-50">🏆</span></div>
-                    </div>
-                    <button
-                        onClick={() => navigate('/settings/subscription')}
-                        className="px-4 py-2 bg-cyber-gold/10 border border-cyber-gold text-cyber-gold hover:bg-cyber-gold hover:text-black transition-all font-bold uppercase text-xs tracking-wider cursor-pointer"
-                    >
-                        Ver Detalhes
-                    </button>
-                </section>
-            </div>
-
-            {/* Logo da Empresa */}
-            <section className="bg-black/40 border border-cyber-gold/30 p-6 relative group overflow-hidden">
-                <div className="absolute top-0 left-0 w-1 h-full bg-cyber-gold opacity-50 group-hover:opacity-100 transition-opacity"></div>
-                <div className="flex items-center gap-4 mb-6">
-                    <div className="p-3 bg-cyber-gold/10 rounded-lg border border-cyber-gold/30 text-cyber-gold">
-                        <Image size={24} />
-                    </div>
-                    <h2 className="text-xl font-bold text-cyber-gold uppercase">Logo da Empresa</h2>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
+            {/* Header */}
+            <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-5 border-b border-white/10">
+                <div className="min-w-0">
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
+                        Configurações da Empresa
+                    </h1>
+                    <p className="text-sm text-zinc-400 mt-1">
+                        Identidade visual, dados cadastrais, cobrança no PDF e exibição de comissões.
+                    </p>
                 </div>
-                <LogoUploadConfig />
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 self-start sm:self-auto whitespace-nowrap">
+                    <Check className="w-3.5 h-3.5" />
+                    Conta Ativa
+                </span>
+            </header>
+
+            {/* Quick Access Shortcuts */}
+            <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                {quickLinks.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                        <button
+                            key={item.path}
+                            type="button"
+                            onClick={() => navigate(item.path)}
+                            className="group text-left rounded-2xl bg-zinc-900/75 border border-white/10 hover:border-cyber-gold/40 p-4 transition-all min-w-0 overflow-hidden flex flex-col justify-between gap-3"
+                        >
+                            <div className="flex items-center justify-between gap-2">
+                                <div className="w-9 h-9 rounded-xl bg-cyber-gold/10 border border-cyber-gold/20 text-cyber-gold flex items-center justify-center shrink-0">
+                                    <Icon className="w-4 h-4" />
+                                </div>
+                                <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:text-cyber-gold group-hover:translate-x-0.5 transition-all shrink-0" />
+                            </div>
+                            <div className="min-w-0">
+                                <h2 className="text-sm font-semibold text-white truncate">
+                                    {item.title}
+                                </h2>
+                                <p className="text-xs text-zinc-400 mt-0.5 line-clamp-2">
+                                    {item.description}
+                                </p>
+                            </div>
+                        </button>
+                    );
+                })}
             </section>
 
-            {/* Dados da Empresa e Cobrança */}
-            <section className="bg-black/40 border border-cyber-gold/30 p-6 relative group overflow-hidden">
-                <div className="absolute top-0 left-0 w-1 h-full bg-cyber-gold opacity-50 group-hover:opacity-100 transition-opacity"></div>
-                <div className="flex items-center gap-4 mb-6">
-                    <div className="p-3 bg-cyber-gold/10 rounded-lg border border-cyber-gold/30 text-cyber-gold">
-                        <CreditCard size={24} />
-                    </div>
-                    <div>
-                        <h2 className="text-xl font-bold text-cyber-gold uppercase">Dados &amp; Cobrança</h2>
-                        <p className="text-cyber-gold/50 text-xs mt-1">Dados da empresa, PIX e conta bancária (aparecem no PDF da OS)</p>
-                    </div>
-                </div>
-                <BillingConfig />
-            </section>
+            {/* Navigation Tabs */}
+            <nav
+                className="flex items-center gap-1.5 p-1.5 rounded-xl bg-zinc-900/80 border border-white/10 overflow-x-auto"
+                role="tablist"
+                aria-label="Seções de configuração da empresa"
+            >
+                {tabs.map((tab) => {
+                    const Icon = tab.icon;
+                    const isActive = activeTab === tab.id;
+                    return (
+                        <button
+                            key={tab.id}
+                            type="button"
+                            role="tab"
+                            aria-selected={isActive}
+                            onClick={() => setActiveTab(tab.id)}
+                            className={`flex-1 min-w-fit inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all whitespace-nowrap ${
+                                isActive
+                                    ? 'bg-cyber-gold/15 text-cyber-gold border border-cyber-gold/35'
+                                    : 'text-zinc-400 hover:text-white border border-transparent'
+                            }`}
+                        >
+                            <Icon className="w-4 h-4 shrink-0" />
+                            <span>{tab.label}</span>
+                        </button>
+                    );
+                })}
+            </nav>
 
-            {/* Comissão Configuration */}
-            <section className="bg-black/40 border border-cyber-gold/30 p-6 relative group overflow-hidden">
-                <div className="absolute top-0 left-0 w-1 h-full bg-cyber-gold opacity-50 group-hover:opacity-100 transition-opacity"></div>
-                <div className="flex items-center gap-4 mb-6">
-                    <div className="p-3 bg-cyber-gold/10 rounded-lg border border-cyber-gold/30 text-cyber-gold">
-                        <Calculator size={24} />
-                    </div>
-                    <h2 className="text-xl font-bold text-cyber-gold uppercase">Configuração de Comissão</h2>
-                </div>
-                <ModoComissaoConfig />
-                <div className="mt-4 pt-4 border-t border-cyber-gold/20">
-                    <p className="text-cyber-gold/50 text-sm mb-3">Configure as faixas de comissão e regras avançadas.</p>
-                    <button
-                        onClick={() => navigate('/settings/comissao')}
-                        className="px-4 py-2 bg-cyber-gold/10 border border-cyber-gold text-cyber-gold hover:bg-cyber-gold hover:text-black transition-all font-bold uppercase text-xs tracking-wider cursor-pointer"
-                    >
-                        Gerenciar Regras de Comissão
-                    </button>
-                </div>
+            {/* Tab Content */}
+            <section role="tabpanel">
+                {activeTab === 'dados' && <BillingConfig />}
+                {activeTab === 'logo' && <LogoUploadConfig />}
+                {activeTab === 'comissao' && <ModoComissaoConfig />}
             </section>
         </div>
     );
