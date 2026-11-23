@@ -29,3 +29,20 @@ dist-ssr
 
 # Secrets
 subPass
+
+# Trabalho Interno & Agentes
+.agents/
+trabalho-interno/
+homologação.html
+homologacao*.html
+
+# Debug / Logs / Relatórios internos antigos
+build_error.txt
+build_output.txt
+lint_error.txt
+output_*.txt
+verification_*.txt
+verify_backend.sh
+implementation_plan.md
+RELATORIO_ARQUITETURA.md
+RELATORIO_PARA_BACKEND.md
