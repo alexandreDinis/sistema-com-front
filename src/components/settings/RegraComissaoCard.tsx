@@ -1,6 +1,20 @@
 import React from 'react';
-import { Check, X, Edit2, Trash2, Power, PowerOff, ChevronDown, ChevronUp } from 'lucide-react';
+import {
+    Check,
+    ChevronDown,
+    ChevronUp,
+    Edit2,
+    Power,
+    PowerOff,
+    Trash2,
+    X,
+} from 'lucide-react';
 import type { RegraComissao } from '../../types';
+import {
+    formatRuleDate,
+    getTipoRegraLabel,
+    isRegraExpirada,
+} from '../../utils/comissaoRulesUtils';
 
 interface RegraComissaoCardProps {
     regra: RegraComissao;
@@ -12,26 +26,8 @@ interface RegraComissaoCardProps {
     onToggleExpand?: () => void;
 }
 
-const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-        style: 'currency',
-        currency: 'BRL'
-    }).format(value);
-};
-
-const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('pt-BR');
-};
-
-const getTipoRegraLabel = (tipo: string) => {
-    const labels: Record<string, string> = {
-        'FAIXA_FATURAMENTO': 'Faixas de Faturamento',
-        'FIXA_FUNCIONARIO': 'Fixa por Prestador',
-        'FIXA_EMPRESA': 'Fixa da Empresa',
-        'HIBRIDA': 'Híbrida'
-    };
-    return labels[tipo] || tipo;
-};
+const formatCurrency = (value: number) =>
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
 export const RegraComissaoCard: React.FC<RegraComissaoCardProps> = ({
     regra,
@@ -40,147 +36,177 @@ export const RegraComissaoCard: React.FC<RegraComissaoCardProps> = ({
     onDesativar,
     onDelete,
     isExpanded = true,
-    onToggleExpand
+    onToggleExpand,
 }) => {
-    const isExpirada = regra.dataFim && new Date(regra.dataFim) < new Date();
+    const expirada = isRegraExpirada(regra.dataFim);
 
     return (
-        <div className={`bg-black/60 border rounded-sm overflow-hidden transition-all ${regra.ativa
-                ? 'border-green-500/50 shadow-[0_0_15px_rgba(34,197,94,0.15)]'
-                : isExpirada
-                    ? 'border-red-500/30'
-                    : 'border-cyber-gold/30 hover:border-cyber-gold/50'
-            }`}>
+        <article
+            className={`rounded-2xl border overflow-hidden transition-all min-w-0 ${
+                regra.ativa
+                    ? 'bg-gradient-to-b from-emerald-950/25 to-zinc-900/80 border-emerald-500/35'
+                    : expirada
+                        ? 'bg-zinc-900/70 border-red-500/25'
+                        : 'bg-zinc-900/75 border-white/10 hover:border-cyber-gold/30'
+            }`}
+        >
             {/* Header */}
             <div
-                className="p-4 flex items-center justify-between cursor-pointer"
+                className={`p-5 flex items-start sm:items-center justify-between gap-3 ${
+                    onToggleExpand ? 'cursor-pointer' : ''
+                }`}
                 onClick={onToggleExpand}
             >
-                <div className="flex items-center gap-3">
-                    <div className={`w-2 h-2 rounded-full ${regra.ativa ? 'bg-green-500 animate-pulse' : isExpirada ? 'bg-red-500' : 'bg-gray-500'
-                        }`} />
-                    <div>
-                        <h3 className="text-cyber-gold font-bold text-lg">{regra.nome}</h3>
-                        <p className="text-cyber-gold/50 text-xs font-mono">
-                            {getTipoRegraLabel(regra.tipoRegra)}
-                        </p>
-                    </div>
+                <div className="min-w-0">
+                    <h3 className="text-base sm:text-lg font-bold text-white truncate">
+                        {regra.nome}
+                    </h3>
+                    <p className="text-xs text-zinc-400 mt-0.5">
+                        {getTipoRegraLabel(regra.tipoRegra)} • Vigência desde{' '}
+                        {formatRuleDate(regra.dataInicio)}
+                        {regra.dataFim ? ` até ${formatRuleDate(regra.dataFim)}` : ''}
+                    </p>
                 </div>
 
-                <div className="flex items-center gap-3">
-                    {/* Status Badge */}
-                    <span className={`px-2 py-1 text-xs font-bold uppercase tracking-wider rounded-sm ${regra.ativa
-                            ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                            : isExpirada
-                                ? 'bg-red-500/20 text-red-400 border border-red-500/30'
-                                : 'bg-gray-500/20 text-gray-400 border border-gray-500/30'
-                        }`}>
+                <div className="flex items-center gap-2.5 shrink-0">
+                    <span
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border ${
+                            regra.ativa
+                                ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                                : expirada
+                                    ? 'bg-red-500/15 text-red-400 border-red-500/30'
+                                    : 'bg-white/5 text-zinc-400 border-white/10'
+                        }`}
+                    >
                         {regra.ativa ? (
-                            <span className="flex items-center gap-1"><Check size={12} /> Ativa</span>
-                        ) : isExpirada ? (
-                            <span className="flex items-center gap-1"><X size={12} /> Expirada</span>
+                            <>
+                                <Check className="w-3 h-3" />
+                                Ativa
+                            </>
+                        ) : expirada ? (
+                            <>
+                                <X className="w-3 h-3" />
+                                Expirada
+                            </>
                         ) : (
                             'Inativa'
                         )}
                     </span>
 
-                    {/* Expand Toggle */}
                     {onToggleExpand && (
-                        isExpanded ? <ChevronUp size={20} className="text-cyber-gold/50" /> : <ChevronDown size={20} className="text-cyber-gold/50" />
+                        <span className="p-1 text-zinc-400">
+                            {isExpanded ? (
+                                <ChevronUp className="w-4 h-4" />
+                            ) : (
+                                <ChevronDown className="w-4 h-4" />
+                            )}
+                        </span>
                     )}
                 </div>
             </div>
 
             {/* Expandable Content */}
             {isExpanded && (
-                <>
-                    {/* Info Section */}
-                    <div className="px-4 pb-3 border-t border-cyber-gold/10 pt-3">
-                        <div className="flex gap-4 text-xs text-cyber-gold/60">
-                            <span>Início: <span className="text-cyber-gold">{formatDate(regra.dataInicio)}</span></span>
-                            {regra.dataFim && (
-                                <span>Fim: <span className="text-cyber-gold">{formatDate(regra.dataFim)}</span></span>
-                            )}
-                        </div>
-                        {regra.descricao && (
-                            <p className="text-cyber-gold/50 text-sm mt-2">{regra.descricao}</p>
-                        )}
-                    </div>
+                <div className="px-5 pb-5 space-y-4 border-t border-white/10 pt-4">
+                    {regra.descricao && (
+                        <p className="text-sm text-zinc-300 leading-relaxed">{regra.descricao}</p>
+                    )}
 
                     {/* Faixas Table */}
                     {regra.faixas && regra.faixas.length > 0 && (
-                        <div className="px-4 pb-4">
-                            <h4 className="text-xs font-bold text-cyber-gold/50 uppercase tracking-widest mb-2">
-                                Faixas de Comissão
-                            </h4>
-                            <div className="bg-black/40 border border-cyber-gold/20 rounded-sm overflow-hidden">
-                                <table className="w-full text-sm">
-                                    <thead>
-                                        <tr className="border-b border-cyber-gold/20">
-                                            <th className="text-left p-2 text-cyber-gold/50 font-mono text-xs">Faixa</th>
-                                            <th className="text-right p-2 text-cyber-gold/50 font-mono text-xs">Min</th>
-                                            <th className="text-right p-2 text-cyber-gold/50 font-mono text-xs">Max</th>
-                                            <th className="text-right p-2 text-cyber-gold/50 font-mono text-xs">%</th>
+                        <div className="rounded-xl border border-white/10 bg-black/30 overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead>
+                                    <tr className="border-b border-white/10 text-[11px] uppercase tracking-wider text-zinc-400">
+                                        <th className="text-left px-3.5 py-2.5 font-semibold">Faixa</th>
+                                        <th className="text-right px-3.5 py-2.5 font-semibold">Mínimo</th>
+                                        <th className="text-right px-3.5 py-2.5 font-semibold">Máximo</th>
+                                        <th className="text-right px-3.5 py-2.5 font-semibold">Repasse</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {regra.faixas.map((faixa, idx) => (
+                                        <tr
+                                            key={faixa.id || idx}
+                                            className="border-b border-white/5 last:border-0"
+                                        >
+                                            <td className="px-3.5 py-2.5 text-zinc-200 font-medium">
+                                                {faixa.descricao || `Faixa ${idx + 1}`}
+                                            </td>
+                                            <td className="px-3.5 py-2.5 text-right text-zinc-300 tabular-nums whitespace-nowrap">
+                                                {formatCurrency(faixa.minFaturamento)}
+                                            </td>
+                                            <td className="px-3.5 py-2.5 text-right text-zinc-300 tabular-nums whitespace-nowrap">
+                                                {faixa.maxFaturamento !== null &&
+                                                faixa.maxFaturamento !== undefined
+                                                    ? formatCurrency(faixa.maxFaturamento)
+                                                    : 'Sem limite'}
+                                            </td>
+                                            <td className="px-3.5 py-2.5 text-right font-bold text-emerald-400 tabular-nums whitespace-nowrap">
+                                                {faixa.porcentagem}%
+                                            </td>
                                         </tr>
-                                    </thead>
-                                    <tbody>
-                                        {regra.faixas.map((faixa, idx) => (
-                                            <tr key={faixa.id || idx} className="border-b border-cyber-gold/10 last:border-0">
-                                                <td className="p-2 text-cyber-gold/80">
-                                                    {faixa.descricao || `Faixa ${idx + 1}`}
-                                                </td>
-                                                <td className="p-2 text-right font-mono text-cyber-gold">
-                                                    {formatCurrency(faixa.minFaturamento)}
-                                                </td>
-                                                <td className="p-2 text-right font-mono text-cyber-gold">
-                                                    {faixa.maxFaturamento ? formatCurrency(faixa.maxFaturamento) : '∞'}
-                                                </td>
-                                                <td className="p-2 text-right font-mono font-bold text-green-400">
-                                                    {faixa.porcentagem}%
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
                     )}
 
                     {/* Actions */}
-                    <div className="px-4 pb-4 flex gap-2 flex-wrap">
+                    <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-white/10">
                         <button
-                            onClick={(e) => { e.stopPropagation(); onEdit(regra); }}
-                            className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider bg-cyber-gold/10 border border-cyber-gold/30 text-cyber-gold hover:bg-cyber-gold hover:text-black transition-all flex items-center gap-1"
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onEdit(regra);
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-zinc-200 transition-colors"
                         >
-                            <Edit2 size={12} /> Editar
+                            <Edit2 className="w-3.5 h-3.5 text-cyber-gold" />
+                            <span>Editar</span>
                         </button>
 
                         {regra.ativa ? (
                             <button
-                                onClick={(e) => { e.stopPropagation(); onDesativar(regra); }}
-                                className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider bg-orange-500/10 border border-orange-500/30 text-orange-400 hover:bg-orange-500 hover:text-black transition-all flex items-center gap-1"
+                                type="button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onDesativar(regra);
+                                }}
+                                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/25 text-xs font-semibold text-amber-300 transition-colors"
                             >
-                                <PowerOff size={12} /> Desativar
+                                <PowerOff className="w-3.5 h-3.5" />
+                                <span>Desativar</span>
                             </button>
                         ) : (
                             <>
                                 <button
-                                    onClick={(e) => { e.stopPropagation(); onAtivar(regra); }}
-                                    className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider bg-green-500/10 border border-green-500/30 text-green-400 hover:bg-green-500 hover:text-black transition-all flex items-center gap-1"
+                                    type="button"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onAtivar(regra);
+                                    }}
+                                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-xs font-semibold text-emerald-300 transition-colors"
                                 >
-                                    <Power size={12} /> Ativar
+                                    <Power className="w-3.5 h-3.5" />
+                                    <span>Ativar</span>
                                 </button>
                                 <button
-                                    onClick={(e) => { e.stopPropagation(); onDelete(regra); }}
-                                    className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500 hover:text-black transition-all flex items-center gap-1"
+                                    type="button"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onDelete(regra);
+                                    }}
+                                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/25 text-xs font-semibold text-red-300 transition-colors"
                                 >
-                                    <Trash2 size={12} /> Excluir
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                    <span>Excluir</span>
                                 </button>
                             </>
                         )}
                     </div>
-                </>
+                </div>
             )}
-        </div>
+        </article>
     );
 };

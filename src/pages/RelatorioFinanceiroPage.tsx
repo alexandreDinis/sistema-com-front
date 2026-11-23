@@ -1,102 +1,152 @@
 import React, { useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import {
+    ArrowLeft,
+    Calendar,
+    ChevronLeft,
+    ChevronRight,
+    FileDown,
+    Loader2,
+} from 'lucide-react';
 import { RelatorioConsolidado } from '../components/reports/RelatorioConsolidado';
 import { ClientRankingWidget } from '../components/relatorios/ClientRankingWidget';
-import { ChevronRight, Home } from 'lucide-react';
-import { Link, useSearchParams } from 'react-router-dom';
 import { PdfQueueModal } from '../components/modals/PdfQueueModal';
 import { usePdfDownload } from '../hooks/usePdfDownload';
 import { osService } from '../services/osService';
+import { MESES_EXTENSO, parsePeriodoParams } from '../utils/dreUtils';
 
 export const RelatorioFinanceiroPage: React.FC = () => {
     const [searchParams] = useSearchParams();
-    const today = new Date();
+    const initialPeriodo = parsePeriodoParams(
+        searchParams.get('ano'),
+        searchParams.get('mes')
+    );
 
-    // Initialize from URL params if present
-    const initialAno = searchParams.get('ano') ? parseInt(searchParams.get('ano')!) : today.getFullYear();
-    const initialMes = searchParams.get('mes') ? parseInt(searchParams.get('mes')!) : today.getMonth() + 1;
+    const [mes, setMes] = useState(initialPeriodo.mes);
+    const [ano, setAno] = useState(initialPeriodo.ano);
+    const { pdfState, startPdfDownload, retryPdfDownload, closePdfModal } = usePdfDownload(
+        osService.getApiBaseUrl()
+    );
 
-    const [mes, setMes] = useState(initialMes);
-    const [ano, setAno] = useState(initialAno);
-    const { pdfState, startPdfDownload, retryPdfDownload, closePdfModal } = usePdfDownload(osService.getApiBaseUrl());
+    const isDownloadingPdf = pdfState.status === 'downloading' || pdfState.status === 'queued';
 
     const handlePreviousMonth = () => {
         if (mes === 1) {
             setMes(12);
-            setAno((prev: number) => prev - 1);
+            setAno((prev) => prev - 1);
         } else {
-            setMes((prev: number) => prev - 1);
+            setMes((prev) => prev - 1);
         }
     };
 
     const handleNextMonth = () => {
         if (mes === 12) {
             setMes(1);
-            setAno((prev: number) => prev + 1);
+            setAno((prev) => prev + 1);
         } else {
-            setMes((prev: number) => prev + 1);
+            setMes((prev) => prev + 1);
         }
     };
 
+    const handleExportPdf = () => {
+        if (isDownloadingPdf) return;
+        const mesStr = mes.toString().padStart(2, '0');
+        startPdfDownload(
+            osService.getRelatorioPdfPath(ano, mes),
+            `relatorio-DRE-${ano}-${mesStr}.pdf`
+        );
+    };
+
+    const periodoLabel = `${MESES_EXTENSO[mes - 1]} ${ano}`;
+
     return (
-        <div className="container mx-auto px-4 py-12">
-            <div className="mb-12">
-                <nav className="flex items-center gap-3 text-[9px] font-black text-cyber-gold/30 mb-8 uppercase tracking-[0.4em]">
-                    <Link to="/relatorio" className="hover:text-cyber-gold transition-colors flex items-center gap-1.5 border border-cyber-gold/10 px-2 py-1 bg-black/40">
-                        <Home className="w-2.5 h-2.5" />
-                        RELATÓRIOS
-                    </Link>
-                    <ChevronRight className="w-2.5 h-2.5 opacity-20" />
-                    <span className="text-cyber-gold/60">DRE_MENSAL_CONSOLIDADO</span>
-                </nav>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
+            {/* Breadcrumb */}
+            <div className="flex items-center gap-2 text-xs text-zinc-400">
+                <Link
+                    to="/relatorio"
+                    className="inline-flex items-center gap-1.5 text-zinc-400 hover:text-cyber-gold transition-colors"
+                >
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                    <span>Relatórios</span>
+                </Link>
+                <span className="text-zinc-600">/</span>
+                <span className="text-zinc-200 font-medium">DRE Mensal</span>
+            </div>
 
-                <div className="flex flex-col md:flex-row justify-between items-end gap-6 relative">
-                    <div className="relative">
-                        <div className="absolute -left-4 top-0 bottom-0 w-px bg-cyber-gold/20"></div>
-                        <h1 className="text-5xl font-black text-cyber-gold tracking-tighter italic italic-shadow uppercase glitch">
-                            Demonstração de Resultados (DRE)
-                        </h1>
-                        <p className="text-cyber-gold/40 text-[10px] font-mono tracking-[0.2em] mt-3 uppercase">
-                            DRE_CONSOLIDAÇÃO_SISTEMA // VERIFICANDO_SYMLINKS_COMISSÃO_E_IMPOSTO
-                        </p>
-                    </div>
+            {/* Header */}
+            <header className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 pb-5 border-b border-white/10">
+                <div className="min-w-0">
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
+                        Demonstração de Resultados (DRE)
+                    </h1>
+                    <p className="text-sm text-zinc-400 mt-1">
+                        Visão consolidada de faturamento, despesas, impostos, comissões e resultado líquido mensal.
+                    </p>
+                </div>
 
-                    <div className="flex items-center gap-4 bg-black/40 border border-cyber-gold/20 p-1 relative">
+                {/* Controls: Period selector + Export PDF */}
+                <div className="flex flex-wrap sm:flex-nowrap items-center gap-3">
+                    <div className="flex items-center bg-zinc-900/80 border border-white/10 rounded-xl p-1 flex-1 sm:flex-initial justify-between">
                         <button
-                            onClick={() => startPdfDownload(osService.getRelatorioPdfPath(ano, mes), `relatorio-DRE-${ano}-${mes}.pdf`)}
-                            className="px-4 h-12 flex items-center justify-center hover:bg-cyber-gold hover:text-black transition-all font-bold text-xs tracking-wider border-r border-cyber-gold/10 font-oxanium text-cyber-gold"
-                            title="Exportar Relatório em PDF"
-                        >
-                            <span className="mr-2">PDF</span>
-                            EXPORT
-                        </button>
-                        <div className="absolute -top-1 -left-1 w-2 h-2 border-t border-l border-cyber-gold/40"></div>
-                        <button
+                            type="button"
                             onClick={handlePreviousMonth}
-                            className="w-12 h-12 flex items-center justify-center hover:bg-cyber-gold hover:text-black transition-all font-black text-xl italic"
+                            className="p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-white/5 transition-colors"
+                            aria-label="Mês anterior"
+                            title="Mês anterior"
                         >
-                            {'<'}
+                            <ChevronLeft className="w-4 h-4" />
                         </button>
-                        <div className="px-8 flex flex-col items-center">
-                            <span className="text-[8px] font-mono text-cyber-gold/40 tracking-[0.3em]">PERÍODO_AUDITORIA</span>
-                            <span className="text-lg font-black italic tracking-widest text-cyber-gold">
-                                {mes.toString().padStart(2, '0')}.{ano}
+
+                        <div className="flex items-center gap-2 px-3 min-w-[148px] justify-center">
+                            <Calendar className="w-3.5 h-3.5 text-cyber-gold shrink-0" />
+                            <span className="text-sm font-semibold text-white whitespace-nowrap">
+                                {periodoLabel}
                             </span>
                         </div>
+
                         <button
+                            type="button"
                             onClick={handleNextMonth}
-                            className="w-12 h-12 flex items-center justify-center hover:bg-cyber-gold hover:text-black transition-all font-black text-xl italic"
+                            className="p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-white/5 transition-colors"
+                            aria-label="Próximo mês"
+                            title="Próximo mês"
                         >
-                            {'>'}
+                            <ChevronRight className="w-4 h-4" />
                         </button>
                     </div>
-                </div>
-            </div>
 
+                    <button
+                        type="button"
+                        onClick={handleExportPdf}
+                        disabled={isDownloadingPdf}
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-cyber-gold hover:bg-amber-400 text-black font-semibold text-sm transition-all shadow-lg shadow-cyber-gold/15 disabled:opacity-60 disabled:cursor-not-allowed flex-1 sm:flex-initial whitespace-nowrap"
+                        title="Exportar DRE em PDF"
+                    >
+                        {isDownloadingPdf ? (
+                            <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <span>Gerando PDF...</span>
+                            </>
+                        ) : (
+                            <>
+                                <FileDown className="w-4 h-4" />
+                                <span>Exportar PDF</span>
+                            </>
+                        )}
+                    </button>
+                </div>
+            </header>
+
+            {/* Main DRE Content */}
             <RelatorioConsolidado ano={ano} mes={mes} />
 
-            <div className="mt-8 h-[500px]">
-                <ClientRankingWidget selectedAno={ano} selectedMes={mes} />
-            </div>
+            {/* Client Ranking */}
+            <section className="pt-2">
+                <div className="h-[480px]">
+                    <ClientRankingWidget selectedAno={ano} selectedMes={mes} />
+                </div>
+            </section>
 
             <PdfQueueModal state={pdfState} onRetry={retryPdfDownload} onClose={closePdfModal} />
         </div>
