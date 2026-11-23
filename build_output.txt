@@ -1,5 +1,0 @@
-
-> sistema-comi-front@0.0.0 build
-> tsc -b && vite build
-
-src/hooks/useComissao.ts(4,1): error TS6133: 'ComissaoCalculada' is declared but its value is never read.

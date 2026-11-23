@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import { AppHeader } from '../components/common/AppHeader';
 import { MobileBottomNav } from '../components/common/MobileBottomNav';
 import { ExpirationBanner } from '../components/common/ExpirationBanner';
+import { APP_VERSION_LABEL } from '../config/version';
 
 export const AppLayout: React.FC = () => {
     return (
@@ -20,7 +21,7 @@ export const AppLayout: React.FC = () => {
                     <div className="flex items-center gap-2.5">
                         <span>Powered by Oroboros Technology</span>
                         <span className="px-2 py-0.5 rounded-full font-mono text-[11px] font-bold text-cyber-gold bg-cyber-gold/10 border border-cyber-gold/35">
-                            v2.1.1
+                            {APP_VERSION_LABEL}
                         </span>
                     </div>
                 </div>
