@@ -1,0 +1,45 @@
+name: Frontend CI
+
+on:
+  pull_request:
+    branches: [ main, development ]
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Validar formato SemVer do package.json
+        run: |
+          FRONT_VERSION=$(node -p "require('./package.json').version")
+          echo "Versão detectada no package.json: ${FRONT_VERSION}"
+
+          if [[ ! "${FRONT_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Versão '${FRONT_VERSION}' no package.json não segue SemVer."
+            exit 1
+          fi
+
+          if [[ "${{ github.base_ref }}" == "main" && ! "${FRONT_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::PR para main não pode conter sufixo de desenvolvimento ('${FRONT_VERSION}'). Atualize para X.Y.Z antes de promover."
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Build production bundle
+        run: npm run build

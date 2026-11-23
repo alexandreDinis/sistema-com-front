@@ -1,0 +1,131 @@
+name: Frontend Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions: {}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validar tag SemVer vs package.json
+        id: check
+        run: |
+          TAG_NAME="${GITHUB_REF_NAME}"
+          if [[ ! "${TAG_NAME}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Tag '${TAG_NAME}' inválida. Somente tags no formato vMAJOR.MINOR.PATCH podem publicar uma Release."
+            exit 1
+          fi
+          TAG_VERSION="${TAG_NAME#v}"
+          PKG_VERSION=$(node -p "require('./package.json').version")
+
+          echo "Tag: ${TAG_NAME} | package.json: ${PKG_VERSION}"
+
+          if [[ ! "${PKG_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Versão do package.json ('${PKG_VERSION}') deve ser uma versão final SemVer (X.Y.Z) sem -dev."
+            exit 1
+          fi
+
+          if [[ "${PKG_VERSION}" != "${TAG_VERSION}" ]]; then
+            echo "::error::Tag '${TAG_NAME}' diverge da versão do package.json ('${PKG_VERSION}')."
+            exit 1
+          fi
+
+          echo "version=${PKG_VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Validar sincronização obrigatória com o repositório Backend
+        env:
+          CROSS_REPO_TOKEN: ${{ secrets.CROSS_REPO_TOKEN }}
+          BACKEND_REPO: ${{ vars.BACKEND_REPO || 'alexandreDinis/sistema-comissao' }}
+        run: |
+          AUTH_HEADER=()
+          if [[ -n "${CROSS_REPO_TOKEN}" ]]; then
+            AUTH_HEADER=(-H "Authorization: Bearer ${CROSS_REPO_TOKEN}")
+          fi
+
+          if ! POM_XML=$(curl -sf \
+            "${AUTH_HEADER[@]}" \
+            -H "Accept: application/vnd.github.raw+json" \
+            "https://api.github.com/repos/${BACKEND_REPO}/contents/pom.xml?ref=main"); then
+            echo "::error::Não foi possível consultar pom.xml do repositório '${BACKEND_REPO}'. Se o repositório for privado, configure o secret CROSS_REPO_TOKEN (Contents: Read). Release bloqueada para evitar publicação dessincronizada."
+            exit 1
+          fi
+
+          BACK_VERSION=$(echo "${POM_XML}" | awk '
+            /<parent>/ { in_parent=1 }
+            /<\/parent>/ { in_parent=0; next }
+            !in_parent && /<version>/ {
+              gsub(/.*<version>|<\/version>.*/, "")
+              gsub(/^[ \t]+|[ \t]+$/, "")
+              print
+              exit
+            }
+          ')
+
+          FRONT_VERSION="${{ steps.check.outputs.version }}"
+          echo "Backend (main): ${BACK_VERSION} | Frontend (tag): ${FRONT_VERSION}"
+
+          if [[ ! "${BACK_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Release bloqueada! Backend em main ainda está com versão não-final ('${BACK_VERSION}')."
+            exit 1
+          fi
+
+          if [[ "${BACK_VERSION}" != "${FRONT_VERSION}" ]]; then
+            echo "::error::Release bloqueada! Versões divergentes: Frontend='${FRONT_VERSION}' != Backend='${BACK_VERSION}'."
+            exit 1
+          fi
+
+      - name: Gerar Changelog da Release
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || true)
+          if [[ -n "${PREV_TAG}" ]]; then
+            RANGE="${PREV_TAG}..${GITHUB_REF_NAME}"
+            HEADER="${PREV_TAG} -> ${GITHUB_REF_NAME}"
+          else
+            RANGE="-n 50 ${GITHUB_REF_NAME}"
+            HEADER="Histórico recente até ${GITHUB_REF_NAME}"
+          fi
+
+          RE_FEAT='^feat(\([^)]+\))?!?: '
+          RE_FIX='^fix(\([^)]+\))?!?: '
+          RE_REFACTOR='^(refactor|perf|style)(\([^)]+\))?!?: '
+          RE_CHORE='^(chore|test|docs|ci|build)(\([^)]+\))?!?: '
+
+          FEATS=(); FIXES=(); REFACTORS=(); CHORES=(); OTHERS=()
+          while IFS= read -r line; do
+            [[ -z "${line}" ]] && continue
+            if [[ "${line}" =~ ${RE_FEAT} ]]; then FEATS+=("- ${line}")
+            elif [[ "${line}" =~ ${RE_FIX} ]]; then FIXES+=("- ${line}")
+            elif [[ "${line}" =~ ${RE_REFACTOR} ]]; then REFACTORS+=("- ${line}")
+            elif [[ "${line}" =~ ${RE_CHORE} ]]; then CHORES+=("- ${line}")
+            else OTHERS+=("- ${line}")
+            fi
+          done < <(git log ${RANGE} --no-merges --pretty=format:"%s (%h)")
+
+          {
+            echo "## Changelog (${HEADER})"
+            echo ""
+            [[ ${#FEATS[@]} -gt 0 ]] && { echo "### Novas Funcionalidades"; printf '%s\n' "${FEATS[@]}"; echo ""; }
+            [[ ${#FIXES[@]} -gt 0 ]] && { echo "### Correções"; printf '%s\n' "${FIXES[@]}"; echo ""; }
+            [[ ${#REFACTORS[@]} -gt 0 ]] && { echo "### Refatorações e Melhorias"; printf '%s\n' "${REFACTORS[@]}"; echo ""; }
+            [[ ${#CHORES[@]} -gt 0 ]] && { echo "### Manutenção, Testes e Documentação"; printf '%s\n' "${CHORES[@]}"; echo ""; }
+            [[ ${#OTHERS[@]} -gt 0 ]] && { echo "### Outras Alterações (Histórico Anterior)"; printf '%s\n' "${OTHERS[@]}"; echo ""; }
+          } > RELEASE_NOTES.md
+
+      - name: Publicar GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Frontend ${GITHUB_REF_NAME}"
+          body_path: RELEASE_NOTES.md
+          draft: false
+          prerelease: false

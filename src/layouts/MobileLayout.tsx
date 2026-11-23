@@ -3,6 +3,7 @@ import { Outlet, useLocation, useNavigate, Link } from 'react-router-dom';
 import { Home, FileText, Users, TrendingDown, DollarSign, Monitor } from 'lucide-react';
 import { ExpirationBanner } from '../components/common/ExpirationBanner';
 import { UserMenu } from '../components/common/UserMenu';
+import { APP_VERSION_LABEL } from '../config/version';
 import logo from '../assets/log.png';
 
 // Rotas permitidas no mobile (mesmo que no native app)
@@ -79,7 +80,7 @@ export const MobileLayout: React.FC = () => {
                 <footer className="mt-8 pt-4 border-t border-white/10 flex flex-col items-center gap-1.5 text-center text-[11px] text-gray-500">
                     <span>Powered by Oroboros Technology</span>
                     <span className="px-2 py-0.5 rounded-full font-mono text-[10px] font-bold text-cyber-gold bg-cyber-gold/10 border border-cyber-gold/35">
-                        v2.1.1
+                        {APP_VERSION_LABEL}
                     </span>
                 </footer>
             </main>
