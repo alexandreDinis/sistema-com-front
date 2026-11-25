@@ -585,8 +585,41 @@ export const OSDetailsPage: React.FC = () => {
             : 0;
     const totalFinalPreview = Math.max(0, subtotalPreview - descontoCalculadoPreview);
 
+    const handleDownloadPdfSemFotos = () => {
+        startPdfDownload(
+            osService.getOSPdfPath(osId, { ocultarTotal: ocultarTotalPdf }),
+            osService.getOSPdfFilename(osId, os.data)
+        );
+        setShowPdfMenu(false);
+    };
+
+    const handleDownloadPdfComFotos = () => {
+        startPdfDownload(
+            osService.getOSPdfPath(osId, {
+                imagens: true,
+                ocultarTotal: ocultarTotalPdf,
+            }),
+            osService.getOSPdfFilename(osId, os.data)
+        ).catch((err: unknown) => {
+            const apiErr = getApiError(err);
+            if (apiErr.response?.data?.error === 'TooManyImages') {
+                setActionModal({
+                    isOpen: true,
+                    title: 'Limite de imagens excedido',
+                    message:
+                        apiErr.response.data.message ||
+                        `Esta OS tem muitas fotos para incluir no PDF de uma vez (limite: ${apiErr.response.data.limite}). Considere baixar o PDF sem imagens ou revisar a quantidade de fotos por veículo.`,
+                    type: 'warning',
+                    showCancel: false,
+                    confirmText: 'Entendi',
+                });
+            }
+        });
+        setShowPdfMenu(false);
+    };
+
     return (
-        <div className="pb-40 md:pb-12">
+        <div className="pb-52 md:pb-12">
             {/* Top Bar */}
             <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
                 <div className="flex items-center gap-3 min-w-0">
@@ -634,61 +667,113 @@ export const OSDetailsPage: React.FC = () => {
                             <ChevronDown className="w-3.5 h-3.5" />
                         </button>
                         {showPdfMenu && (
-                            <div className="absolute top-full mt-2 right-0 bg-[#131826] border border-white/15 rounded-xl shadow-2xl z-50 w-max min-w-[255px] overflow-hidden">
-                                <label className="w-full px-4 py-3 bg-black/30 hover:bg-white/5 transition-colors flex items-center justify-between gap-3 border-b border-white/10 cursor-pointer select-none">
-                                    <span className="flex items-center gap-2 text-gray-200 font-oxanium text-xs sm:text-sm">
-                                        <EyeOff className="w-4 h-4 text-cyber-gold shrink-0" />
-                                        Esconder valor total?
-                                    </span>
-                                    <input
-                                        type="checkbox"
-                                        checked={ocultarTotalPdf}
-                                        onChange={(e) => setOcultarTotalPdf(e.target.checked)}
-                                        className="w-4 h-4 accent-amber-500 rounded cursor-pointer"
-                                    />
-                                </label>
-                                <button
-                                    onClick={() => {
-                                        startPdfDownload(
-                                            osService.getOSPdfPath(osId, { ocultarTotal: ocultarTotalPdf }),
-                                            osService.getOSPdfFilename(osId, os.data)
-                                        );
-                                        setShowPdfMenu(false);
+                            <>
+                                {/* Overlay para fechar ao clicar fora no desktop */}
+                                <div
+                                    className="hidden sm:block fixed inset-0 z-40"
+                                    onClick={() => setShowPdfMenu(false)}
+                                />
+
+                                {/* Dropdown padrão no desktop (sm+) */}
+                                <div className="hidden sm:block absolute top-full mt-2 right-0 bg-[#131826] border border-white/15 rounded-xl shadow-2xl z-50 w-max min-w-[255px] overflow-hidden">
+                                    <label className="w-full px-4 py-3 bg-black/30 hover:bg-white/5 transition-colors flex items-center justify-between gap-3 border-b border-white/10 cursor-pointer select-none">
+                                        <span className="flex items-center gap-2 text-gray-200 font-oxanium text-xs sm:text-sm">
+                                            <EyeOff className="w-4 h-4 text-cyber-gold shrink-0" />
+                                            Esconder valor total?
+                                        </span>
+                                        <input
+                                            type="checkbox"
+                                            checked={ocultarTotalPdf}
+                                            onChange={(e) => setOcultarTotalPdf(e.target.checked)}
+                                            className="w-4 h-4 accent-amber-500 rounded cursor-pointer"
+                                        />
+                                    </label>
+                                    <button
+                                        onClick={handleDownloadPdfSemFotos}
+                                        className="w-full text-left px-4 py-3 text-gray-200 hover:bg-white/5 hover:text-white transition-colors font-oxanium text-sm flex items-center gap-2.5 border-b border-white/5"
+                                    >
+                                        <FileDown className="w-4 h-4 text-cyber-gold" /> PDF sem fotos
+                                    </button>
+                                    <button
+                                        onClick={handleDownloadPdfComFotos}
+                                        className="w-full text-left px-4 py-3 text-gray-200 hover:bg-white/5 hover:text-white transition-colors font-oxanium text-sm flex items-center gap-2.5"
+                                    >
+                                        <Image className="w-4 h-4 text-cyber-gold" /> PDF com fotos
+                                    </button>
+                                </div>
+
+                                {/* Bottom-sheet no celular (< sm) — sem corte lateral */}
+                                <div
+                                    className="sm:hidden fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-end"
+                                    onClick={(e) => {
+                                        if (e.target === e.currentTarget) setShowPdfMenu(false);
                                     }}
-                                    className="w-full text-left px-4 py-3 text-gray-200 hover:bg-white/5 hover:text-white transition-colors font-oxanium text-sm flex items-center gap-2.5 border-b border-white/5"
                                 >
-                                    <FileDown className="w-4 h-4 text-cyber-gold" /> PDF sem fotos
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        startPdfDownload(
-                                            osService.getOSPdfPath(osId, {
-                                                imagens: true,
-                                                ocultarTotal: ocultarTotalPdf,
-                                            }),
-                                            osService.getOSPdfFilename(osId, os.data)
-                                        ).catch((err: unknown) => {
-                                            const apiErr = getApiError(err);
-                                            if (apiErr.response?.data?.error === 'TooManyImages') {
-                                                setActionModal({
-                                                    isOpen: true,
-                                                    title: 'Limite de imagens excedido',
-                                                    message:
-                                                        apiErr.response.data.message ||
-                                                        `Esta OS tem muitas fotos para incluir no PDF de uma vez (limite: ${apiErr.response.data.limite}). Considere baixar o PDF sem imagens ou revisar a quantidade de fotos por veículo.`,
-                                                    type: 'warning',
-                                                    showCancel: false,
-                                                    confirmText: 'Entendi',
-                                                });
-                                            }
-                                        });
-                                        setShowPdfMenu(false);
-                                    }}
-                                    className="w-full text-left px-4 py-3 text-gray-200 hover:bg-white/5 hover:text-white transition-colors font-oxanium text-sm flex items-center gap-2.5"
-                                >
-                                    <Image className="w-4 h-4 text-cyber-gold" /> PDF com fotos
-                                </button>
-                            </div>
+                                    <div className="w-full bg-[#121724] border-t border-cyber-gold/40 rounded-t-2xl px-4 pt-2.5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] shadow-2xl">
+                                        <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mb-3" />
+                                        <div className="flex items-center justify-between mb-3.5">
+                                            <h3 className="text-sm font-orbitron font-bold text-white">
+                                                Gerar PDF · O.S. #{os.id}
+                                            </h3>
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowPdfMenu(false)}
+                                                aria-label="Fechar opções de PDF"
+                                                className="p-1.5 rounded-lg bg-white/5 border border-white/10 text-gray-400 hover:text-white"
+                                            >
+                                                <X className="w-4 h-4" />
+                                            </button>
+                                        </div>
+
+                                        <label className="w-full min-h-[48px] px-4 py-3 mb-2.5 bg-black/40 border border-white/10 rounded-xl flex items-center justify-between gap-3 cursor-pointer select-none">
+                                            <span className="flex items-center gap-2.5 text-gray-200 font-oxanium text-sm">
+                                                <EyeOff className="w-4 h-4 text-cyber-gold shrink-0" />
+                                                Esconder valor total no PDF?
+                                            </span>
+                                            <input
+                                                type="checkbox"
+                                                checked={ocultarTotalPdf}
+                                                onChange={(e) => setOcultarTotalPdf(e.target.checked)}
+                                                className="w-5 h-5 accent-amber-500 rounded cursor-pointer shrink-0"
+                                            />
+                                        </label>
+
+                                        <div className="space-y-2">
+                                            <button
+                                                type="button"
+                                                onClick={handleDownloadPdfSemFotos}
+                                                className="w-full min-h-[52px] text-left px-4 py-3 rounded-xl bg-white/[0.04] border border-white/10 active:bg-cyber-gold/15 active:border-cyber-gold/40 transition-colors flex items-center gap-3"
+                                            >
+                                                <FileDown className="w-5 h-5 text-cyber-gold shrink-0" />
+                                                <div className="min-w-0">
+                                                    <div className="text-sm font-oxanium font-bold text-white">
+                                                        PDF sem fotos
+                                                    </div>
+                                                    <div className="text-[11px] text-gray-400">
+                                                        Mais leve e rápido para compartilhar
+                                                    </div>
+                                                </div>
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                onClick={handleDownloadPdfComFotos}
+                                                className="w-full min-h-[52px] text-left px-4 py-3 rounded-xl bg-white/[0.04] border border-white/10 active:bg-cyber-gold/15 active:border-cyber-gold/40 transition-colors flex items-center gap-3"
+                                            >
+                                                <Image className="w-5 h-5 text-cyber-gold shrink-0" />
+                                                <div className="min-w-0">
+                                                    <div className="text-sm font-oxanium font-bold text-white">
+                                                        PDF com fotos
+                                                    </div>
+                                                    <div className="text-[11px] text-gray-400">
+                                                        Inclui as imagens anexadas dos veículos
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </>
                         )}
                     </div>
 
@@ -708,7 +793,7 @@ export const OSDetailsPage: React.FC = () => {
                                 className="bg-red-500/10 text-red-400 border border-red-500/35 px-3 py-2 rounded-xl hover:bg-red-500/20 transition-all font-oxanium text-xs sm:text-sm font-semibold flex items-center gap-1.5"
                             >
                                 <Ban className="w-4 h-4" />
-                                <span className="hidden sm:inline">Cancelar</span>
+                                <span>Cancelar</span>
                             </button>
                             <button
                                 onClick={handleStartService}
@@ -1046,12 +1131,12 @@ export const OSDetailsPage: React.FC = () => {
                 )}
             </div>
 
-            {/* Botão flutuante compacto "+ Veículo" no modo celular (não obstrui conteúdo graças ao pb-40) */}
+            {/* Botão flutuante compacto "+ Veículo" no modo celular (posicionado acima da barra de ação e da bottom nav) */}
             {canEdit && (
                 <button
                     onClick={() => setVeiculoModalOpen(true)}
                     aria-label="Adicionar Veículo"
-                    className="md:hidden fixed bottom-20 right-4 z-30 inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-cyber-gold text-black border border-yellow-300/60 shadow-xl shadow-cyber-gold/30 text-xs font-oxanium font-bold active:scale-95 transition-transform"
+                    className="md:hidden fixed bottom-[calc(8.75rem+env(safe-area-inset-bottom))] right-4 z-30 inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-cyber-gold text-black border border-yellow-300/60 shadow-xl shadow-cyber-gold/30 text-xs font-oxanium font-bold active:scale-95 transition-transform"
                 >
                     <Car className="w-4 h-4" />
                     <Plus className="w-3.5 h-3.5 -ml-1" />
@@ -1059,29 +1144,31 @@ export const OSDetailsPage: React.FC = () => {
                 </button>
             )}
 
-            {/* Barra fixa inferior exclusiva no celular (Total + Ação Principal) */}
+            {/* Barra fixa inferior exclusiva no celular — posicionada logo acima da Bottom Navigation (h-16) */}
             {canEdit && (
-                <div className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-[#10141e]/95 backdrop-blur-md border-t border-white/10 px-4 py-3 flex items-center justify-between gap-3">
-                    <div>
+                <div className="md:hidden fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] inset-x-0 z-30 bg-[#10141e]/95 backdrop-blur-md border-t border-cyber-gold/30 shadow-[0_-8px_24px_rgba(0,0,0,0.45)] px-4 py-3 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
                         <div className="text-[10px] text-gray-400 uppercase tracking-wider font-oxanium">
                             Total da O.S.
                         </div>
-                        <div className="text-base font-bold text-cyber-gold font-orbitron tabular-nums">
+                        <div className="text-base font-bold text-cyber-gold font-orbitron tabular-nums truncate">
                             {os.valorTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                         </div>
                     </div>
                     {os.status === 'ABERTA' && (
                         <button
                             onClick={handleStartService}
-                            className="bg-blue-500 text-white px-4 py-2.5 rounded-xl font-oxanium text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-blue-500/20"
+                            disabled={updateStatusMutation.isPending}
+                            className="bg-blue-500 text-white px-4 py-2.5 rounded-xl font-oxanium text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-blue-500/25 shrink-0 disabled:opacity-60 active:scale-95 transition-transform"
                         >
-                            <Wrench className="w-4 h-4" /> Iniciar Serviço
+                            <Wrench className="w-4 h-4" />
+                            {updateStatusMutation.isPending ? 'Iniciando...' : 'Iniciar Serviço'}
                         </button>
                     )}
                     {os.status === 'EM_EXECUCAO' && (
                         <button
                             onClick={() => setIsFinalizeModalOpen(true)}
-                            className="bg-emerald-500 text-black px-4 py-2.5 rounded-xl font-oxanium text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-emerald-500/20"
+                            className="bg-emerald-500 text-black px-4 py-2.5 rounded-xl font-oxanium text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-emerald-500/25 shrink-0 active:scale-95 transition-transform"
                         >
                             <CheckCircle2 className="w-4 h-4" /> Finalizar O.S.
                         </button>
