@@ -48,29 +48,57 @@ jobs:
           CROSS_REPO_TOKEN: ${{ secrets.CROSS_REPO_TOKEN }}
           BACKEND_REPO: ${{ vars.BACKEND_REPO || 'alexandreDinis/sistema-comissao' }}
         run: |
+          TMP_RESPONSE=$(mktemp)
+          trap 'rm -f "${TMP_RESPONSE}"' EXIT
+
           AUTH_HEADER=()
           if [[ -n "${CROSS_REPO_TOKEN}" ]]; then
             AUTH_HEADER=(-H "Authorization: Bearer ${CROSS_REPO_TOKEN}")
           fi
 
-          if ! POM_XML=$(curl -sf \
+          HTTP_STATUS=$(curl -sSL \
+            -o "${TMP_RESPONSE}" \
+            -w "%{http_code}" \
             "${AUTH_HEADER[@]}" \
-            -H "Accept: application/vnd.github.raw+json" \
-            "https://api.github.com/repos/${BACKEND_REPO}/contents/pom.xml?ref=main"); then
-            echo "::error::Não foi possível consultar pom.xml do repositório '${BACKEND_REPO}'. Se o repositório for privado, configure o secret CROSS_REPO_TOKEN (Contents: Read). Release bloqueada para evitar publicação dessincronizada."
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${BACKEND_REPO}/contents/pom.xml?ref=main")
+
+          if [[ "${HTTP_STATUS}" != "200" ]]; then
+            echo "::error::Falha ao consultar pom.xml do repositório '${BACKEND_REPO}' (HTTP ${HTTP_STATUS}). Se o repositório for privado, verifique o secret CROSS_REPO_TOKEN (Contents: Read). Release bloqueada para evitar publicação dessincronizada."
             exit 1
           fi
 
-          BACK_VERSION=$(echo "${POM_XML}" | awk '
+          if ! CONTENT_B64=$(jq -re '.content | select(type == "string" and length > 0)' "${TMP_RESPONSE}" 2>/dev/null); then
+            echo "::error::A API não retornou conteúdo Base64 válido para pom.xml."
+            exit 1
+          fi
+
+          if ! POM_XML=$(printf '%s' "${CONTENT_B64}" | tr -d '\n\r' | base64 -d 2>/dev/null); then
+            echo "::error::Falha ao decodificar o conteúdo Base64 de pom.xml."
+            exit 1
+          fi
+
+          if [[ -z "${POM_XML}" ]] || ! grep -q '<project' <<< "${POM_XML}"; then
+            echo "::error::O conteúdo retornado não parece ser um pom.xml válido."
+            exit 1
+          fi
+
+          BACK_VERSION=$(printf '%s\n' "${POM_XML}" | awk '
             /<parent>/ { in_parent=1 }
             /<\/parent>/ { in_parent=0; next }
             !in_parent && /<version>/ {
               gsub(/.*<version>|<\/version>.*/, "")
-              gsub(/^[ \t]+|[ \t]+$/, "")
+              gsub(/^[ \t\r]+|[ \t\r]+$/, "")
               print
               exit
             }
           ')
+
+          if [[ -z "${BACK_VERSION}" ]]; then
+            echo "::error::Não foi possível extrair a versão do projeto em pom.xml do backend."
+            exit 1
+          fi
 
           FRONT_VERSION="${{ steps.check.outputs.version }}"
           echo "Backend (main): ${BACK_VERSION} | Frontend (tag): ${FRONT_VERSION}"
