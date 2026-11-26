@@ -102,6 +102,16 @@ export const financeiroService = {
         return response.data;
     },
 
+    obterContadoresContasReceber: async (): Promise<{
+        pendentes: number;
+        pendentesVencidas: number;
+        parciais: number;
+        parciaisVencidas: number;
+    }> => {
+        const response = await api.get('/financeiro/contas-receber/contadores');
+        return response.data;
+    },
+
     // ========================================
     // CONTAS A RECEBER
     // ========================================

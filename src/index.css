@@ -332,12 +332,28 @@ body::after {
   50% { opacity: 1; transform: scale(1.04); }
 }
 
+@keyframes subtleRedPulse {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.45);
+  }
+  50% {
+    opacity: 0.72;
+    box-shadow: 0 0 0 5px rgba(239, 68, 68, 0);
+  }
+}
+
+.badge-overdue-pulse {
+  animation: subtleRedPulse 2.1s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .oro-ring-outer,
   .oro-serpent,
   .oro-ring-inner,
   .oro-energy,
-  .oro-glow {
+  .oro-glow,
+  .badge-overdue-pulse {
     animation: none;
   }
 }

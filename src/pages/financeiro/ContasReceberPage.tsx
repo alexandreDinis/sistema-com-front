@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { financeiroService } from '../../services/financeiroService';
 import { formatarDataLocal } from '../../utils/faturaUtils';
+import { getContasReceberTabBadge, type ContasReceberContadores } from '../../utils/contasReceberUtils';
 import type { ContaReceber, MeioPagamento, PageResponse, Recebimento } from '../../types';
 
 const PAGE_SIZE_RECEBER = 15;
@@ -61,6 +62,7 @@ const ContasReceberPage = () => {
     const hojeIso = getTodayIso();
 
     const [contasPage, setContasPage] = useState<PageResponse<ContaReceber> | null>(null);
+    const [contadores, setContadores] = useState<ContasReceberContadores | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [filtroStatus, setFiltroStatus] = useState<string>('PENDENTE');
@@ -118,9 +120,22 @@ const ContasReceberPage = () => {
         }
     }, [filtroStatus, buscaDebounced, page]);
 
+    const loadContadores = useCallback(async () => {
+        try {
+            const data = await financeiroService.obterContadoresContasReceber();
+            setContadores(data);
+        } catch (err) {
+            console.error('Erro ao carregar contadores de contas a receber:', err);
+        }
+    }, []);
+
     useEffect(() => {
         loadContas();
     }, [loadContas]);
+
+    useEffect(() => {
+        loadContadores();
+    }, [loadContadores]);
 
     const contasFiltradas = useMemo(() => contasPage?.content ?? [], [contasPage]);
 
@@ -198,6 +213,7 @@ const ContasReceberPage = () => {
             setModalReceber(null);
             invalidarCaches();
             loadContas();
+            loadContadores();
         } catch (err: unknown) {
             const axiosErr = err as { response?: { data?: { message?: string } } };
             setErroModal(axiosErr.response?.data?.message || 'Erro ao registrar recebimento.');
@@ -230,6 +246,7 @@ const ContasReceberPage = () => {
             }
             invalidarCaches();
             loadContas();
+            loadContadores();
         } catch (err: unknown) {
             const axiosErr = err as { response?: { data?: { message?: string } } };
             alert(axiosErr.response?.data?.message || 'Erro ao estornar recebimento.');
@@ -247,6 +264,7 @@ const ContasReceberPage = () => {
             setMotivoBaixa('');
             invalidarCaches();
             loadContas();
+            loadContadores();
         } catch (err: unknown) {
             const axiosErr = err as { response?: { data?: { message?: string } } };
             setErroModal(axiosErr.response?.data?.message || 'Erro ao baixar saldo.');
@@ -266,6 +284,7 @@ const ContasReceberPage = () => {
             setModalRenegociar(null);
             setNovaDataVencimento('');
             loadContas();
+            loadContadores();
         } catch (err: unknown) {
             const axiosErr = err as { response?: { data?: { message?: string } } };
             setErroModal(axiosErr.response?.data?.message || 'Erro ao atualizar vencimento.');
@@ -378,23 +397,41 @@ const ContasReceberPage = () => {
                             { key: 'PAGO', label: 'Recebidas' },
                             { key: 'BAIXADO', label: 'Baixadas' },
                             { key: 'TODOS', label: 'Todas' },
-                        ].map((tab) => (
-                            <button
-                                key={tab.key}
-                                type="button"
-                                onClick={() => {
-                                    setFiltroStatus(tab.key);
-                                    setPage(0);
-                                }}
-                                className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
-                                    filtroStatus === tab.key
-                                        ? 'bg-cyber-gold/15 text-cyber-gold border border-cyber-gold/40'
-                                        : 'text-gray-400 hover:text-gray-200 border border-transparent'
-                                }`}
-                            >
-                                {tab.label}
-                            </button>
-                        ))}
+                        ].map((tab) => {
+                            const isActive = filtroStatus === tab.key;
+                            const badge = getContasReceberTabBadge(tab.key, contadores);
+                            return (
+                                <button
+                                    key={tab.key}
+                                    type="button"
+                                    onClick={() => {
+                                        setFiltroStatus(tab.key);
+                                        setPage(0);
+                                    }}
+                                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                                        isActive
+                                            ? 'bg-cyber-gold/15 text-cyber-gold border border-cyber-gold/40'
+                                            : 'text-gray-400 hover:text-gray-200 border border-transparent'
+                                    }`}
+                                >
+                                    <span>{tab.label}</span>
+                                    {badge && (
+                                        <span
+                                            title={badge.tooltip}
+                                            className={`inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[11px] font-bold tabular-nums border ${
+                                                badge.hasOverdue
+                                                    ? 'bg-red-500/20 text-red-300 border-red-500/55 badge-overdue-pulse'
+                                                    : isActive
+                                                      ? 'bg-cyber-gold/20 text-cyber-gold border-cyber-gold/45'
+                                                      : 'bg-white/10 text-gray-300 border-white/15'
+                                            }`}
+                                        >
+                                            {badge.count}
+                                        </span>
+                                    )}
+                                </button>
+                            );
+                        })}
                     </div>
 
                     <div className="flex items-center gap-2 w-full sm:w-auto">
